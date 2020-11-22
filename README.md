@@ -85,7 +85,7 @@ The application uses a service class as a wrapper to the ```@capacitor-community
 
 ### Resulting Output
 
-<p align="center"><br><img src="https://github.com/jepiqueau/angular-sqlite-app-refactor/blob/main/src/assets/icon/CaptureResult%20.png" width="150" height="300" /></p>
+<p align="center"><br><img src="https://github.com/jepiqueau/angular-sqlite-app-refactor/blob/main/src/assets/icon/CaptureResult%20.png" width="200" height="400" /></p>
 
 
 At the end of the test, two databases should have been created,  
