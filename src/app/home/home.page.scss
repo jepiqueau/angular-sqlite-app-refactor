@@ -25,3 +25,16 @@
 #container a {
   text-decoration: none;
 }
+.display {
+  display: none;
+}
+.card-sqlite {
+  padding: 0 1rem;
+}
+ion-card p {
+  font-size: 1rem;
+}
+ion-card {
+  --background: var(--ion-background-color);
+  --color: var(--ion-text-color);
+}
