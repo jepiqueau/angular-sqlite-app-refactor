@@ -14,19 +14,6 @@
   </ion-header>
 
   <div id="container">
-    <strong>Ready to create an app?</strong>
-    <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
-    <ion-card class="card-sqlite">
-      <ion-card-title>
-        Results of refactor sqlite test
-      </ion-card-title>
-      <p class="sql-allsuccess display">
-        The set of tests was successful
-      </p>
-      <p class="sql-allfailure display">
-        The set of tests failed
-      </p>
-    </ion-card>
-    
+    <ion-button [href]="'./test2dbs'" routerDirection="forward" color='primary' expand="block">Test 2 Databases</ion-button> 
   </div>
 </ion-content>

@@ -79,7 +79,10 @@ Once Android Studio launches, you can build your app through the standard Androi
 
 ### Test SQLite access
 
-The ```@capacitor-community/sqlite``` test is run automatically in the home page.
+The ```@capacitor-community/sqlite``` tests are accessible through the home page.
+
+ - Test 2 Databases
+ 
 
 The application uses a service class as a wrapper to the ```@capacitor-community/sqlite``` plugin 
 

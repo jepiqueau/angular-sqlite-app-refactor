@@ -41,7 +41,9 @@ export class SQLiteService {
                     }      
                 });
                 try {
+                    console.log("%%%%% before requestPermissions");
                     sqlitePlugin.requestPermissions();
+                    console.log("%%%%% after requestPermissions");
                 } catch (e) {
                     console.log("Error requesting permissions " + JSON.stringify(e));
                     resolve(false);
