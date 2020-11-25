@@ -1,6 +1,6 @@
 import { Component, AfterViewInit } from '@angular/core';
 import { SQLiteService } from '../services/sqlite.service';
-import { createSchema, twoUsers } from '../utils/no-encryption-utils';
+import { createSchema, twoUsers, twoTests } from '../utils/no-encryption-utils';
 import { createSchemaContacts, setContacts } from '../utils/encrypted-set-utils';
 import { deleteDatabase } from '../utils/db-utils';
 @Component({
@@ -50,13 +50,26 @@ export class Test2dbsPage implements AfterViewInit {
     if (!ret.result) {
       return false;
     }
+
     // create tables in db
     ret = await db.execute(createSchema);
     console.log('$$$ ret.changes.changes in db ' + ret.changes.changes)
     if (ret.changes.changes < 0) {
       return false;
     }
-    // add two users in db
+
+    // create synchronization table 
+    ret = await db.createSyncTable();
+    if (ret.changes.changes < 0) {
+      return false;
+    }
+    
+    // set the synchronization date
+    const syncDate: string = "2020-11-25T08:30:25.000Z";
+    ret = await db.setSyncDate(syncDate);
+    if(!ret.result) return false;
+
+// add two users in db
     ret = await db.execute(twoUsers);
     if (ret.changes.changes !== 2) {
       return false;
@@ -80,7 +93,7 @@ export class Test2dbsPage implements AfterViewInit {
     }
     // load setContacts in db1
     ret = await db1.executeSet(setContacts);
-    console.log('$$$ ret.changes.changes in db2' + ret.changes.changes)
+    console.log('$$$ ret.changes.changes in db1' + ret.changes.changes)
     if (ret.changes.changes !== 5) {
       return false;
     }
@@ -107,11 +120,43 @@ export class Test2dbsPage implements AfterViewInit {
     if(ret.changes.lastId !== 4) {
       return false;
     }
+    // add some tests issue#56
+    ret = await db.execute(twoTests);
+    if (ret.changes.changes !== 2) {
+      return false;
+    }
+    // add one test
+    sqlcmd = "INSERT INTO test56 (name) VALUES (?)";
+    let vals: Array<any>  = ["test 3 added insert "];
+    ret = await db.run(sqlcmd,vals);
+    if (ret.changes.changes !== 1 || ret.changes.lastId !== 3) {
+      return false;
+    }
+    // add a null test
+    vals  = [null];
+    ret = await db.run(sqlcmd,vals);
+    if (ret.changes.changes !== 1 || ret.changes.lastId !== 4) {
+      return false;
+    }
+    // add a another null test
+    vals  = [];
+    ret = await db.run(sqlcmd,vals);
+    if (ret.changes.changes !== 1 || ret.changes.lastId !== 5) {
+      return false;
+    }
+    // add in a wrong table
+    sqlcmd = "INSERT INTO test (name) VALUES (?)";
+    vals  = ["test wrong table "];
+    ret = await db.run(sqlcmd,vals);
+    console.log('$$$ wrong table ret.changes.changes in db' + ret.changes.changes)
+    if (ret.changes.changes !== -1 ) {
+      return false;
+    }
+
     ret = await this._sqlite.closeConnection("testNew"); 
     if(!ret.result) {
       return false; 
     }
-//1234567890123456789012345678901234567890123456789012345678901234567890
     ret = await this._sqlite.closeConnection("testSet"); 
     if(!ret.result) {
       return false; 

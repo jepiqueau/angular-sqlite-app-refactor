@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS images (
   img BLOB,
   last_modified INTEGER DEFAULT (strftime('%s', 'now'))
 );
+CREATE TABLE IF NOT EXISTS test56 (
+  id INTEGER PRIMARY KEY NOT NULL,
+  name TEXT
+);
 CREATE INDEX IF NOT EXISTS users_index_name ON users (name);
 CREATE INDEX IF NOT EXISTS users_index_last_modified ON users (last_modified);
 CREATE INDEX IF NOT EXISTS messages_index_name ON messages (title);
@@ -57,4 +61,10 @@ export const twoUsers: string = `
 DELETE FROM users;
 INSERT INTO users (name,email,age) VALUES ("${row[0][0]}","${row[0][1]}",${row[0][2]});
 INSERT INTO users (name,email,age) VALUES ("${row[1][0]}","${row[1][1]}",${row[1][2]});
+`;
+// Insert some Tests issue#56
+export const twoTests = `
+DELETE FROM test56;
+INSERT INTO test56 (name) VALUES ("test 1");
+INSERT INTO test56 (name) VALUES ("test 2");
 `;

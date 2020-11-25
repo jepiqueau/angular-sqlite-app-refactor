@@ -4,11 +4,19 @@ import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 const routes: Routes = [
   {
     path: 'home',
-    loadChildren: () => import('./home/home.module').then( m => m.HomePageModule)
+    loadChildren: () => import('./home/home.module')
+                      .then( m => m.HomePageModule)
   },
   {
     path: 'test2dbs',
-    loadChildren: () => import('./test2dbs/test2dbs.module').then( m => m.Test2dbsPageModule)
+    loadChildren: () => import('./test2dbs/test2dbs.module')
+                      .then( m => m.Test2dbsPageModule)
+  },
+  {
+    path: 'upgradeversion',
+    loadChildren: () => 
+        import('./testupgradeversion/testupgradeversion.module')
+                      .then( m => m.TestupgradeversionPageModule)
   },
   {
     path: '',

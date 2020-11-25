@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 
 import { Plugins, Capacitor } from '@capacitor/core';
 import '@capacitor-community/sqlite';
-import { SQLiteDBConnection, SQLiteConnection,
+import { SQLiteDBConnection, SQLiteConnection, capSQLiteSet,
          capEchoResult, capSQLiteResult } from '@capacitor-community/sqlite';
 const { CapacitorSQLite } = Plugins;
 
@@ -61,6 +61,18 @@ export class SQLiteService {
             return null;
         }
     }
+    async addUpgradeStatement(database:string, fromVersion: number,
+                              toVersion: number, statement: string,
+                              set?: capSQLiteSet[])
+                                        : Promise<capSQLiteResult> {
+        if(this.sqlite != null) {
+            return await this.sqlite.addUpgradeStatement(database,
+                fromVersion, toVersion, statement, set ? set : []);
+        } else {
+            return null;
+        }                             
+    }
+    
     async createConnection(database:string, encrypted: boolean,
                            mode: string, version: number
                            ): Promise<SQLiteDBConnection | null> {
