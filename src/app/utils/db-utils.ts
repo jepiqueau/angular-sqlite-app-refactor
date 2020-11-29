@@ -1,11 +1,12 @@
 import { SQLiteDBConnection } from '@capacitor-community/sqlite';
 
-export function deleteDatabase(db: SQLiteDBConnection): boolean {
-    let ret: any = db.isExists();
+export async function deleteDatabase(db: SQLiteDBConnection): Promise<boolean> {
+    let ret: any = await db.isExists();
     const dbName = db.getConnectionDBName();
     if(ret) {
-      console.log("$$$ database " + dbName + " deleted");
-      ret = db.delete();
+      console.log("$$$ database " + dbName + " before delete");
+      ret = await db.delete();
+      console.log("$$$ database " + dbName + " after delete " + ret.result);
     }
     return ret;
 }

@@ -13,6 +13,11 @@ const routes: Routes = [
                       .then( m => m.Test2dbsPageModule)
   },
   {
+    path: 'encryption',
+    loadChildren: () => import('./testencryption/testencryption.module')
+                      .then( m => m.TestencryptionPageModule)
+  },
+  {
     path: 'upgradeversion',
     loadChildren: () => 
         import('./testupgradeversion/testupgradeversion.module')

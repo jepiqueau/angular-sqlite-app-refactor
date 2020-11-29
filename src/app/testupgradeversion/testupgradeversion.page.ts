@@ -47,7 +47,7 @@ export class TestupgradeversionPage implements AfterViewInit {
                                   "no-encryption", 1);
     // check if the databases exist 
     // and delete it for multiple successive tests
-    let ret: any = deleteDatabase(db);
+    let ret: any = await deleteDatabase(db);
 
     // open db test-updversion
     ret = await db.open();

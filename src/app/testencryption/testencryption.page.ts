@@ -4,11 +4,11 @@ import { createSchema, twoUsers, twoTests } from '../utils/no-encryption-utils';
 import { createSchemaContacts, setContacts } from '../utils/encrypted-set-utils';
 import { deleteDatabase } from '../utils/db-utils';
 @Component({
-  selector: 'app-test2dbs',
-  templateUrl: 'test2dbs.page.html',
-  styleUrls: ['test2dbs.page.scss'],
+  selector: 'app-testencryption',
+  templateUrl: 'testencryption.page.html',
+  styleUrls: ['testencryption.page.scss'],
 })
-export class Test2dbsPage implements AfterViewInit {
+export class TestencryptionPage implements AfterViewInit {
   sqlite: any;
   platform: string;
   handlerPermissions: any;
@@ -35,19 +35,17 @@ export class Test2dbsPage implements AfterViewInit {
   async runTest(): Promise<boolean> {
     let result: any = await this._sqlite.echo("Hello World");
     console.log(" from Echo " + result.value);
+
+    // ************************************************
+    // Create Database No Encryption
+    // ************************************************
+
     // initialize the connection
-    const db = await this._sqlite
-                .createConnection("testNew", false, "no-encryption", 1);
-    const db1 = await this._sqlite
-                .createConnection("testSet", true, "secret", 1);
+    let db = await this._sqlite
+                .createConnection("testEncryption", false, "no-encryption", 1);
 
-    // check if the databases exist 
-    // and delete it for multiple successive tests
-    let ret: any = await deleteDatabase(db);
-    ret = await deleteDatabase(db1);
-
-    // open db testNew
-    ret = await db.open();
+    // open db testEncryption
+    let ret: any = await db.open();
     if (!ret.result) {
       return false;
     }
@@ -83,24 +81,6 @@ export class Test2dbsPage implements AfterViewInit {
       return false;
     }
 
-    // open db testSet
-    ret = await db1.open();
-    if (!ret.result) {
-      return false;
-    }
-    // create tables in db1
-    ret = await db1.execute(createSchemaContacts);
-    console.log('$$$ ret.changes.changes in db1' + ret.changes.changes)
-    if (ret.changes.changes < 0) {
-      return false;
-    }
-    // load setContacts in db1
-    ret = await db1.executeSet(setContacts);
-    console.log('$$$ ret.changes.changes in db1' + ret.changes.changes)
-    if (ret.changes.changes !== 5) {
-      return false;
-    }
-
     // select users where company is NULL in db
     ret = await db.query("SELECT * FROM users WHERE company IS NULL;");
     if(ret.values.length !== 2 || ret.values[0].name !== "Whiteley" ||
@@ -123,44 +103,49 @@ export class Test2dbsPage implements AfterViewInit {
     if(ret.changes.lastId !== 4) {
       return false;
     }
-    // add some tests issue#56
-    ret = await db.execute(twoTests);
-    if (ret.changes.changes !== 2) {
-      return false;
-    }
-    // add one test
-    sqlcmd = "INSERT INTO test56 (name) VALUES (?)";
-    let vals: Array<any>  = ["test 3 added insert "];
-    ret = await db.run(sqlcmd,vals);
-    if (ret.changes.changes !== 1 || ret.changes.lastId !== 3) {
-      return false;
-    }
-    // add a null test
-    vals  = [null];
-    ret = await db.run(sqlcmd,vals);
-    if (ret.changes.changes !== 1 || ret.changes.lastId !== 4) {
-      return false;
-    }
-    // add a another null test
-    vals  = [];
-    ret = await db.run(sqlcmd,vals);
-    if (ret.changes.changes !== 1 || ret.changes.lastId !== 5) {
-      return false;
-    }
-    // add in a wrong table
-    sqlcmd = "INSERT INTO test (name) VALUES (?)";
-    vals  = ["test wrong table "];
-    ret = await db.run(sqlcmd,vals);
-    console.log('$$$ wrong table ret.changes.changes in db' + ret.changes.changes)
-    if (ret.changes.changes !== -1 ) {
-      return false;
-    }
 
-    ret = await this._sqlite.closeConnection("testNew"); 
+    ret = await this._sqlite.closeConnection("testEncryption"); 
     if(!ret.result) {
       return false; 
     }
-    ret = await this._sqlite.closeConnection("testSet"); 
+
+    // ************************************************
+    // Encrypt the existing database
+    // ************************************************
+
+    // initialize the connection
+    db = await this._sqlite
+                .createConnection("testEncryption", true, "encryption", 1);
+
+    // open db testEncryption
+    ret = await db.open();
+    if (!ret.result) {
+      return false;
+    }
+    // add one user with statement and values              
+    sqlcmd = 
+                "INSERT INTO users (name,email,age) VALUES (?,?,?)";
+    values = ["Jackson","Jackson@example.com",32];
+    ret = await db.run(sqlcmd,values);
+    console.log()
+    if(ret.changes.lastId !== 5) {
+      return false;
+    }
+
+    // select all users in db
+    ret = await db.query("SELECT * FROM users;");
+    if(ret.values.length !== 5 || ret.values[0].name !== "Whiteley" ||
+                                  ret.values[1].name !== "Jones" ||
+                                  ret.values[2].name !== "Simpson" ||
+                                  ret.values[3].name !== "Brown" ||
+                                  ret.values[4].name !== "Jackson") {
+      return false;
+    }
+
+    // delete it for multiple successive tests
+    ret = await deleteDatabase(db);
+    
+    ret = await this._sqlite.closeConnection("testEncryption"); 
     if(!ret.result) {
       return false; 
     } else {
