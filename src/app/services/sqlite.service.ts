@@ -6,9 +6,7 @@ import { SQLiteDBConnection, SQLiteConnection, capSQLiteSet,
          capEchoResult, capSQLiteResult } from '@capacitor-community/sqlite';
 const { CapacitorSQLite } = Plugins;
 
-@Injectable({
-    providedIn: 'root'
-})
+@Injectable()
 
 export class SQLiteService {
     handlerPermissions: any;
@@ -32,6 +30,7 @@ export class SQLiteService {
                     if (data.permissionGranted === 1) {
                         this.handlerPermissions.remove();
                         this.sqlite = new SQLiteConnection(sqlitePlugin);
+                        this.isService = true;
                         resolve(true);
                     } else {
                         console.log("Permission not granted");
@@ -50,11 +49,14 @@ export class SQLiteService {
                 }
             } else {
                 this.sqlite = new SQLiteConnection(sqlitePlugin);
+                this.isService = true;
+                console.log("$$$ in service this.isService " + this.isService + " $$$")
                 resolve(true);
             }
         });
     }
     async echo(value: string): Promise<capEchoResult> {
+        console.log("&&&& in echo this.sqlite " + this.sqlite + " &&&&")
         if(this.sqlite != null) {
             return await this.sqlite.echo(value);
         } else {
@@ -95,4 +97,33 @@ export class SQLiteService {
             return null;
         }
     }
+    async retrieveConnection(database:string): 
+            Promise<SQLiteDBConnection | null | undefined> {
+        if(this.sqlite != null) {
+            return await this.sqlite.retrieveConnection(database);
+        } else {
+            return null;
+        }
+    }
+    async retrieveAllConnections(): 
+                    Promise<Map<string, SQLiteDBConnection>> {
+        if(this.sqlite != null) {
+            const myConns =  await this.sqlite.retrieveAllConnections();
+            let keys = [...myConns.keys()];
+            keys.forEach( (value) => {
+                console.log("Connection: " + value);
+              }); 
+              return myConns;
+        } else {
+            return null;
+        }               
+    }
+    async closeAllConnections(): Promise<capSQLiteResult> {
+        if(this.sqlite != null) {
+            return await this.sqlite.closeAllConnections();
+        } else {
+            return null;
+        }
+    }
+
 }

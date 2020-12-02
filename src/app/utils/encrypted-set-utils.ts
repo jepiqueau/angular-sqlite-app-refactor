@@ -31,3 +31,27 @@ export const setContacts: Array<capSQLiteSet>  = [
     values:[51,"4404030202",2]
   }
 ];
+export const createSchemaMessages: string = `
+CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY NOT NULL,
+  contactid INTEGER,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  last_modified INTEGER DEFAULT (strftime('%s', 'now')),
+  FOREIGN KEY (contactid) REFERENCES contacts(id) ON DELETE SET DEFAULT
+);
+CREATE INDEX IF NOT EXISTS messages_index_name ON messages (title);
+CREATE INDEX IF NOT EXISTS messages_index_last_modified ON messages (last_modified);
+`
+export const setMessages: Array<capSQLiteSet>  = [
+  { statement:"INSERT INTO messages (contactid,title,body) VALUES (?,?,?);",
+    values:[1,"message 1","body message1"]
+  },
+  { statement:"INSERT INTO messages (contactid,title,body) VALUES (?,?,?);",
+    values:[2,"message 2","body message2"]
+  },
+  { statement:"INSERT INTO messages (contactid,title,body) VALUES (?,?,?);",
+    values:[1,"message 3","body message3"]
+  },
+]
+

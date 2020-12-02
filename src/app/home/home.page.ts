@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { DetailService } from '../services/detail.service';
 
 @Component({
   selector: 'app-home',
@@ -6,7 +7,15 @@ import { Component } from '@angular/core';
   styleUrls: ['home.page.scss'],
 })
 export class HomePage {
+  public detail: boolean;
 
-  constructor() {}
+  constructor(private _detailService: DetailService) {
+  }
+  ionViewWillEnter() {
+    
+      this.detail = this._detailService.get();
+      console.log("**** ionViewWillEnter " + this.detail);
+
+  }
 
 }

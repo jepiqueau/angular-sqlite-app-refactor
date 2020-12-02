@@ -7,7 +7,7 @@ import { SQLiteDBConnection } from '@capacitor-community/sqlite';
 @Component({
   selector: 'app-testupgradeversion',
   templateUrl: 'testupgradeversion.page.html',
-  styleUrls: ['testupgradeversion.page.scss'],
+  styleUrls: ['testupgradeversion.page.scss']
 })
 export class TestupgradeversionPage implements AfterViewInit {
   sqlite: any;
@@ -19,7 +19,8 @@ export class TestupgradeversionPage implements AfterViewInit {
 
   async ngAfterViewInit() {
     // Initialize the CapacitorSQLite plugin
-    this.initPlugin = await this._sqlite.initializePlugin();
+//    this.initPlugin = await this._sqlite.initializePlugin();
+    console.log("%%%% in TestupgradeversionPage this._sqlite " + this._sqlite)
     const result: boolean = await this.runTest();
     if(result) {
       document.querySelector('.sql-allsuccess').classList
@@ -141,6 +142,11 @@ export class TestupgradeversionPage implements AfterViewInit {
       ret.values[0].name !== "Jones" ||
       ret.values[0].title !== "test message 2") {
       return false;   
+    }
+    // close connection to test-updversion
+    ret = await this._sqlite.closeConnection("test-updversion"); 
+    if(!ret.result) {
+      return false; 
     } else {
       return true;
     }

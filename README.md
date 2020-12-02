@@ -3,7 +3,7 @@
 <h3 align="center">Ionic/Angular SQLite App Refactor</h3>
 <p align="center"><strong><code>angular-sqlite-app-refactor</code></strong></p>
 <p align="center">Ionic/Angular application demonstrating the use of the</p>
-<p align="center"><strong><code>@capacitor-community/sqlite<code></strong></p>
+<p align="center"><strong><code>@capacitor-community/sqlite</code></strong></p>
 <br>
 <p align="center">
   <img src="https://img.shields.io/maintenance/yes/2020?style=flat-square" />
@@ -77,6 +77,12 @@ npx cap open android
 ```
 Once Android Studio launches, you can build your app through the standard Android Studio workflow.
 
+### iOS
+
+```bash
+npx cap open ios
+```
+
 ### Test SQLite access
 
 The ```@capacitor-community/sqlite``` tests are accessible through the home page.
@@ -88,31 +94,30 @@ The application uses a service class as a wrapper to the ```@capacitor-community
 
 ### Resulting Output
 
-<p align="center"><br><img src="https://github.com/jepiqueau/angular-sqlite-app-refactor/blob/main/src/assets/icon/CaptureResult%20.png" width="200" height="400" /></p>
+<p align="center"><br><img src="https://github.com/jepiqueau/angular-sqlite-app-refactor/blob/main/src/assets/icon/CaptureResult.png" width="200" height="400" /></p>
 
 
-At the end of the test, two databases should have been created,  
+At the end of the test, three databases should have been created,  
 
 
  - testNewSQLite.db
  - testSetSQLite.db encrypted password `sqlite secret`
+ - test-updversionSQLite.db 
 
 ### Angular Service
 
-A Angular Service has been defined as a wrapper to the ```@capacitor-community/sqlite``` plugin.
+A Angular Service has been defined as a wrapper to the ```@capacitor-community/sqlite``` plugin and from release `2.9.0-alpha.5` can be used at a `singleton service` initialized in `app.component.ts` and imported as a provider in `app.module.ts`. In this case the `DBConnection` can be used through Pages (see example in `existingconnection.page.ts` which can be called after the execution of `test2dbs.page.ts`).
 
 ```tsx
 import { Injectable } from '@angular/core';
 
 import { Plugins, Capacitor } from '@capacitor/core';
 import '@capacitor-community/sqlite';
-import { SQLiteDBConnection, SQLiteConnection,
+import { SQLiteDBConnection, SQLiteConnection, capSQLiteSet,
          capEchoResult, capSQLiteResult } from '@capacitor-community/sqlite';
 const { CapacitorSQLite } = Plugins;
 
-@Injectable({
-    providedIn: 'root'
-})
+@Injectable()
 
 export class SQLiteService {
     handlerPermissions: any;
@@ -136,6 +141,7 @@ export class SQLiteService {
                     if (data.permissionGranted === 1) {
                         this.handlerPermissions.remove();
                         this.sqlite = new SQLiteConnection(sqlitePlugin);
+                        this.isService = true;
                         resolve(true);
                     } else {
                         console.log("Permission not granted");
@@ -145,24 +151,41 @@ export class SQLiteService {
                     }      
                 });
                 try {
+                    console.log("%%%%% before requestPermissions");
                     sqlitePlugin.requestPermissions();
+                    console.log("%%%%% after requestPermissions");
                 } catch (e) {
                     console.log("Error requesting permissions " + JSON.stringify(e));
                     resolve(false);
                 }
             } else {
                 this.sqlite = new SQLiteConnection(sqlitePlugin);
+                this.isService = true;
+                console.log("$$$ in service this.isService " + this.isService + " $$$")
                 resolve(true);
             }
         });
     }
     async echo(value: string): Promise<capEchoResult> {
+        console.log("&&&& in echo this.sqlite " + this.sqlite + " &&&&")
         if(this.sqlite != null) {
             return await this.sqlite.echo(value);
         } else {
             return null;
         }
     }
+    async addUpgradeStatement(database:string, fromVersion: number,
+                              toVersion: number, statement: string,
+                              set?: capSQLiteSet[])
+                                        : Promise<capSQLiteResult> {
+        if(this.sqlite != null) {
+            return await this.sqlite.addUpgradeStatement(database,
+                fromVersion, toVersion, statement, set ? set : []);
+        } else {
+            return null;
+        }                             
+    }
+    
     async createConnection(database:string, encrypted: boolean,
                            mode: string, version: number
                            ): Promise<SQLiteDBConnection | null> {
@@ -185,8 +208,36 @@ export class SQLiteService {
             return null;
         }
     }
-}
+    async retrieveConnection(database:string): 
+            Promise<SQLiteDBConnection | null | undefined> {
+        if(this.sqlite != null) {
+            return await this.sqlite.retrieveConnection(database);
+        } else {
+            return null;
+        }
+    }
+    async retrieveAllConnections(): 
+                    Promise<Map<string, SQLiteDBConnection>> {
+        if(this.sqlite != null) {
+            const myConns =  await this.sqlite.retrieveAllConnections();
+            let keys = [...myConns.keys()];
+            keys.forEach( (value) => {
+                console.log("Connection: " + value);
+              }); 
+              return myConns;
+        } else {
+            return null;
+        }               
+    }
+    async closeAllConnections(): Promise<capSQLiteResult> {
+        if(this.sqlite != null) {
+            return await this.sqlite.closeAllConnections();
+        } else {
+            return null;
+        }
+    }
 
+}
 ```
 
 ## Contributors ✨

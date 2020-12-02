@@ -1,24 +1,29 @@
 import { Component, AfterViewInit } from '@angular/core';
 import { SQLiteService } from '../services/sqlite.service';
+import { DetailService } from '../services/detail.service';
+
 import { createSchema, twoUsers, twoTests } from '../utils/no-encryption-utils';
 import { createSchemaContacts, setContacts } from '../utils/encrypted-set-utils';
 import { deleteDatabase } from '../utils/db-utils';
 @Component({
   selector: 'app-test2dbs',
   templateUrl: 'test2dbs.page.html',
-  styleUrls: ['test2dbs.page.scss'],
+  styleUrls: ['test2dbs.page.scss']
 })
 export class Test2dbsPage implements AfterViewInit {
+  detail: boolean = false;
   sqlite: any;
   platform: string;
   handlerPermissions: any;
   initPlugin: boolean = false;
 
-  constructor(private _sqlite: SQLiteService) {}
+  constructor(private _sqlite: SQLiteService,
+              private _detailService: DetailService) {}
 
   async ngAfterViewInit() {
     // Initialize the CapacitorSQLite plugin
-    this.initPlugin = await this._sqlite.initializePlugin();
+//    this.initPlugin = await this._sqlite.initializePlugin();
+    console.log("%%%% in Test2dbsPage this._sqlite " + this._sqlite)
     const result: boolean = await this.runTest();
     if(result) {
       document.querySelector('.sql-allsuccess').classList
@@ -153,7 +158,9 @@ export class Test2dbsPage implements AfterViewInit {
     ret = await db.run(sqlcmd,vals);
     console.log('$$$ wrong table ret.changes.changes in db' + ret.changes.changes)
     if (ret.changes.changes !== -1 ) {
-      return false;
+      return false;    
+
+/*
     }
 
     ret = await this._sqlite.closeConnection("testNew"); 
@@ -163,7 +170,9 @@ export class Test2dbsPage implements AfterViewInit {
     ret = await this._sqlite.closeConnection("testSet"); 
     if(!ret.result) {
       return false; 
+*/
     } else {
+      this._detailService.set(true);
       return true;
     }
 

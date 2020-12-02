@@ -6,7 +6,7 @@ import { deleteDatabase } from '../utils/db-utils';
 @Component({
   selector: 'app-testencryption',
   templateUrl: 'testencryption.page.html',
-  styleUrls: ['testencryption.page.scss'],
+  styleUrls: ['testencryption.page.scss']
 })
 export class TestencryptionPage implements AfterViewInit {
   sqlite: any;
@@ -18,7 +18,9 @@ export class TestencryptionPage implements AfterViewInit {
 
   async ngAfterViewInit() {
     // Initialize the CapacitorSQLite plugin
-    this.initPlugin = await this._sqlite.initializePlugin();
+//    this.initPlugin = await this._sqlite.initializePlugin();
+    console.log("%%%% in TestencryptionPage this._sqlite " + this._sqlite)
+
     const result: boolean = await this.runTest();
     if(result) {
       document.querySelector('.sql-allsuccess').classList

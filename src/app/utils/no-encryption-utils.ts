@@ -1,3 +1,4 @@
+import { capSQLiteSet } from '@capacitor-community/sqlite';
 export const createSchema: string = `
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY NOT NULL,
@@ -68,3 +69,15 @@ DELETE FROM test56;
 INSERT INTO test56 (name) VALUES ("test 1");
 INSERT INTO test56 (name) VALUES ("test 2");
 `;
+export const setUsers: Array<capSQLiteSet>  = [
+  { statement:"INSERT INTO users (name,email,age) VALUES (?,?,?);",
+    values:["Jackson","Jackson@example.com",18]
+  },
+  { statement:"INSERT INTO users (name,email,age) VALUES (?,?,?);",
+    values:["Kennedy","Kennedy@example.com",25]
+  },
+  { statement:"INSERT INTO users (name,email,age) VALUES (?,?,?);",
+    values:["Bush","Bush@example.com",42]
+  },
+];
+
