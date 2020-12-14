@@ -61,13 +61,11 @@ END;
 `;
 export const setArrayVersion2: Array<any> = [
   { statement:"INSERT INTO messages (userid,title,body) VALUES (?,?,?);",
-    values:[1,"test message 1","content test message 1"]
-  },
-  { statement:"INSERT INTO messages (userid,title,body) VALUES (?,?,?);",
-    values:[2,"test message 2","content test message 2"]
-  },
-  { statement:"INSERT INTO messages (userid,title,body) VALUES (?,?,?);",
-    values:[1,"test message 3","content test message 3"]
+    values:[
+      [1,"test message 1","content test message 1"],
+      [2,"test message 2","content test message 2"],
+      [1,"test message 3","content test message 3"]
+    ]
   },
   { statement:"UPDATE users SET country = ?  WHERE id = ?;",
     values:["United Kingdom",1]

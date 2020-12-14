@@ -41,10 +41,12 @@ npm install
 
 ```bash
 npm run build
-npx cap update
+npx cap sync
+npx cap sync @capacitor-community/electron
 npm run build
 npx cap copy
 npx cap copy web
+npx cap copy @capacitor-community/electron
 ```
 
 the capacitor config parameters are:
@@ -81,6 +83,12 @@ Once Android Studio launches, you can build your app through the standard Androi
 
 ```bash
 npx cap open ios
+```
+
+### Electron
+
+```bash
+npx cap open @capacitor-community/electron
 ```
 
 ### Test SQLite access

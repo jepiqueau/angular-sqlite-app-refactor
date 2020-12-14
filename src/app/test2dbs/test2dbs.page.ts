@@ -43,6 +43,7 @@ export class Test2dbsPage implements AfterViewInit {
     // initialize the connection
     const db = await this._sqlite
                 .createConnection("testNew", false, "no-encryption", 1);
+    console.log("db " + db)
     const db1 = await this._sqlite
                 .createConnection("testSet", true, "secret", 1);
 
