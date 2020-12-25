@@ -7,14 +7,16 @@ import { DetailService } from '../services/detail.service';
   styleUrls: ['home.page.scss'],
 })
 export class HomePage {
-  public detail: boolean;
+  public exConn: boolean;
+  public exJson: boolean
 
   constructor(private _detailService: DetailService) {
   }
   ionViewWillEnter() {
     
-      this.detail = this._detailService.get();
-      console.log("**** ionViewWillEnter " + this.detail);
+      this.exConn = this._detailService.getExistingConnection();
+      this.exJson = this._detailService.getExportJson();
+      console.log("**** ionViewWillEnter " + this.exConn);
 
   }
 

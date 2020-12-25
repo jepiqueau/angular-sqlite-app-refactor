@@ -35,6 +35,9 @@ git remote rm origin
 
 ```bash
 npm install
+cd electron
+npm install
+cd ..
 ```
 
  - then go to the building process

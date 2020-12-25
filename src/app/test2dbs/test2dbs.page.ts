@@ -5,6 +5,7 @@ import { DetailService } from '../services/detail.service';
 import { createSchema, twoUsers, twoTests } from '../utils/no-encryption-utils';
 import { createSchemaContacts, setContacts } from '../utils/encrypted-set-utils';
 import { deleteDatabase } from '../utils/db-utils';
+
 @Component({
   selector: 'app-test2dbs',
   templateUrl: 'test2dbs.page.html',
@@ -21,8 +22,6 @@ export class Test2dbsPage implements AfterViewInit {
               private _detailService: DetailService) {}
 
   async ngAfterViewInit() {
-    // Initialize the CapacitorSQLite plugin
-//    this.initPlugin = await this._sqlite.initializePlugin();
     console.log("%%%% in Test2dbsPage this._sqlite " + this._sqlite)
     const result: boolean = await this.runTest();
     if(result) {
@@ -153,6 +152,16 @@ export class Test2dbsPage implements AfterViewInit {
     if (ret.changes.changes !== 1 || ret.changes.lastId !== 5) {
       return false;
     }
+    // add test [null, 'test2']
+    sqlcmd = "INSERT INTO test56 (name,name1) VALUES (?,?)";
+    vals = [null, 'test2']
+    ret = await db.run(sqlcmd,vals);
+    console.log("test [null,'test2' ]" + ret.changes.changes + " " +
+                ret.changes.lastId);
+    if (ret.changes.changes !== 1 || ret.changes.lastId !== 6) {
+      return false;
+    }
+
     // add in a wrong table
     sqlcmd = "INSERT INTO test (name) VALUES (?)";
     vals  = ["test wrong table "];
@@ -173,7 +182,7 @@ export class Test2dbsPage implements AfterViewInit {
       return false; 
 */
     } else {
-      this._detailService.set(true);
+      this._detailService.setExistingConnection(true);
       return true;
     }
 

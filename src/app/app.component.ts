@@ -27,7 +27,8 @@ export class AppComponent {
     this.platform.ready().then(async () => {
       this.statusBar.styleDefault();
       this.splashScreen.hide();
-      this._detail.set(false);
+      this._detail.setExistingConnection(false);
+      this._detail.setExportJson(false);
       this._sqlite.initializePlugin().then(ret => {
         this.initPlugin = ret;
         console.log(">>>> in App  this.initPlugin " + this.initPlugin)

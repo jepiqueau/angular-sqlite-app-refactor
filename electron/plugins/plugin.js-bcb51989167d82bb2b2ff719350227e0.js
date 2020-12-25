@@ -152,6 +152,16 @@ var capacitorPlugin = (function (exports) {
                 return res;
             });
         }
+        importFromJson(jsonstring) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return yield this.sqlite.importFromJson({ jsonstring: jsonstring });
+            });
+        }
+        isJsonValid(jsonstring) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return yield this.sqlite.isJsonValid({ jsonstring: jsonstring });
+            });
+        }
     }
     /**
      * SQLiteDBConnection Class
@@ -265,6 +275,23 @@ var capacitorPlugin = (function (exports) {
                 const res = yield this.sqlite.setSyncDate({
                     database: this.dbName,
                     syncdate: syncdate,
+                });
+                return res;
+            });
+        }
+        getSyncDate() {
+            return __awaiter(this, void 0, void 0, function* () {
+                const res = yield this.sqlite.getSyncDate({
+                    database: this.dbName,
+                });
+                return res;
+            });
+        }
+        exportToJson(mode) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const res = yield this.sqlite.exportToJson({
+                    database: this.dbName,
+                    jsonexportmode: mode,
                 });
                 return res;
             });
@@ -2626,7 +2653,7 @@ var capacitorPlugin = (function (exports) {
     //1234567890123456789012345678901234567890123456789012345678901234567890
     class UtilsSQLite {
         constructor() {
-            this._JSQlite = require('@journeyapps/sqlcipher').verbose();
+            this.JSQlite = require('@journeyapps/sqlcipher').verbose();
         }
         /**
          * OpenOrCreateDatabase
@@ -2637,7 +2664,7 @@ var capacitorPlugin = (function (exports) {
             return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
                 let msg = 'OpenOrCreateDatabase: ';
                 // open sqlite3 database
-                const mDB = new this._JSQlite.Database(pathDB, {
+                const mDB = new this.JSQlite.Database(pathDB, {
                     verbose: console.log,
                 });
                 if (mDB != null) {
@@ -2647,14 +2674,21 @@ var capacitorPlugin = (function (exports) {
                     catch (err) {
                         reject(new Error(msg + `dbChanges ${err.message}`));
                     }
-                    // set the password
-                    if (password.length > 0) {
-                        try {
+                    try {
+                        // set the password
+                        if (password.length > 0) {
                             yield this.setCipherPragma(mDB, password);
                         }
-                        catch (err) {
-                            reject(new Error(msg + `${err.message}`));
+                        // set Foreign Keys On
+                        yield this.setForeignKeyConstraintsEnabled(mDB, true);
+                        // Check Version
+                        let curVersion = yield this.getVersion(mDB);
+                        if (curVersion === 0) {
+                            yield this.setVersion(mDB, 1);
                         }
+                    }
+                    catch (err) {
+                        reject(new Error(msg + `${err.message}`));
                     }
                     resolve(mDB);
                 }
@@ -2708,7 +2742,7 @@ var capacitorPlugin = (function (exports) {
             return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
                 let version = 0;
                 const SELECT_VERSION = 'PRAGMA user_version;';
-                mDB.get(SELECT_VERSION, (err, row) => {
+                mDB.get(SELECT_VERSION, [], (err, row) => {
                     // process the row here
                     if (err) {
                         reject(new Error('getVersion failed: ' + `${err.message}`));
@@ -2838,7 +2872,7 @@ var capacitorPlugin = (function (exports) {
             return new Promise((resolve, reject) => {
                 const SELECT_CHANGE = 'SELECT total_changes()';
                 let changes = 0;
-                db.get(SELECT_CHANGE, (err, row) => {
+                db.get(SELECT_CHANGE, [], (err, row) => {
                     // process the row here
                     if (err) {
                         reject(new Error(`DbChanges failed: ${err.message}`));
@@ -2864,7 +2898,7 @@ var capacitorPlugin = (function (exports) {
             return new Promise((resolve, reject) => {
                 const SELECT_LAST_ID = 'SELECT last_insert_rowid()';
                 let lastId = -1;
-                db.get(SELECT_LAST_ID, (err, row) => {
+                db.get(SELECT_LAST_ID, [], (err, row) => {
                     // process the row here
                     if (err) {
                         let msg = 'GetLastId failed: ';
@@ -3000,8 +3034,10 @@ var capacitorPlugin = (function (exports) {
         }
     }
 
-    //1234567890123456789012345678901234567890123456789012345678901234567890
     class UtilsJson {
+        constructor() {
+            this._uSQLite = new UtilsSQLite();
+        }
         /**
          * IsTableExists
          * @param db
@@ -3016,13 +3052,13 @@ var capacitorPlugin = (function (exports) {
                     }
                     let query = 'SELECT name FROM sqlite_master WHERE ';
                     query += `type='table' AND name='${tableName}';`;
-                    db.get(query, (err, row) => {
+                    db.all(query, [], (err, rows) => {
                         // process the row here
                         if (err) {
                             reject(`isTableExists: failed: ${err.message}`);
                         }
                         else {
-                            if (row == null) {
+                            if (rows.length === 0) {
                                 resolve(false);
                             }
                             else {
@@ -3031,6 +3067,500 @@ var capacitorPlugin = (function (exports) {
                         }
                     });
                 });
+            });
+        }
+        /**
+         * CreateSchema
+         * @param mDB
+         * @param jsonData
+         */
+        createSchema(mDB, jsonData) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    // create the database schema
+                    let changes = 0;
+                    try {
+                        // start a transaction
+                        yield this._uSQLite.beginTransaction(mDB, true);
+                    }
+                    catch (err) {
+                        reject(new Error(`CreateDatabaseSchema: ${err.message}`));
+                    }
+                    const stmts = yield this.createSchemaStatement(jsonData);
+                    if (stmts.length > 0) {
+                        const schemaStmt = stmts.join('\n');
+                        try {
+                            changes = yield this._uSQLite.execute(mDB, schemaStmt);
+                            if (changes < 0) {
+                                try {
+                                    yield this._uSQLite.rollbackTransaction(mDB, true);
+                                }
+                                catch (err) {
+                                    reject(new Error('CreateSchema: changes < 0 ' + `${err.message}`));
+                                }
+                            }
+                        }
+                        catch (err) {
+                            const msg = err.message;
+                            try {
+                                yield this._uSQLite.rollbackTransaction(mDB, true);
+                                reject(new Error(`CreateSchema: ${msg}`));
+                            }
+                            catch (err) {
+                                reject(new Error('CreateSchema: changes < 0 ' + `${err.message}: ${msg}`));
+                            }
+                        }
+                    }
+                    try {
+                        yield this._uSQLite.commitTransaction(mDB, true);
+                        resolve(changes);
+                    }
+                    catch (err) {
+                        reject(new Error('CreateSchema: commit ' + `${err.message}`));
+                    }
+                }));
+            });
+        }
+        /**
+         * CreateSchemaStatement
+         * @param jsonData
+         */
+        createSchemaStatement(jsonData) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise(resolve => {
+                    let statements = [];
+                    // Prepare the statement to execute
+                    for (let i = 0; i < jsonData.tables.length; i++) {
+                        if (jsonData.tables[i].schema != null &&
+                            jsonData.tables[i].schema.length >= 1) {
+                            // create table
+                            statements.push('CREATE TABLE IF NOT EXISTS ' + `${jsonData.tables[i].name} (`);
+                            for (let j = 0; j < jsonData.tables[i].schema.length; j++) {
+                                if (j === jsonData.tables[i].schema.length - 1) {
+                                    if (jsonData.tables[i].schema[j].column) {
+                                        statements.push(`${jsonData.tables[i].schema[j].column} ${jsonData.tables[i].schema[j].value}`);
+                                    }
+                                    else if (jsonData.tables[i].schema[j].foreignkey) {
+                                        statements.push(`FOREIGN KEY (${jsonData.tables[i].schema[j].foreignkey}) ${jsonData.tables[i].schema[j].value}`);
+                                    }
+                                }
+                                else {
+                                    if (jsonData.tables[i].schema[j].column) {
+                                        statements.push(`${jsonData.tables[i].schema[j].column} ${jsonData.tables[i].schema[j].value},`);
+                                    }
+                                    else if (jsonData.tables[i].schema[j].foreignkey) {
+                                        statements.push(`FOREIGN KEY (${jsonData.tables[i].schema[j].foreignkey}) ${jsonData.tables[i].schema[j].value},`);
+                                    }
+                                }
+                            }
+                            statements.push(');');
+                            // create trigger last_modified associated with the table
+                            let trig = 'CREATE TRIGGER IF NOT EXISTS ';
+                            trig += `${jsonData.tables[i].name}`;
+                            trig += `_trigger_last_modified `;
+                            trig += `AFTER UPDATE ON ${jsonData.tables[i].name} `;
+                            trig += 'FOR EACH ROW WHEN NEW.last_modified <= ';
+                            trig += 'OLD.last_modified BEGIN UPDATE ';
+                            trig += `${jsonData.tables[i].name} `;
+                            trig += `SET last_modified = `;
+                            trig += "(strftime('%s','now')) WHERE id=OLD.id; END;";
+                            statements.push(trig);
+                        }
+                        if (jsonData.tables[i].indexes != null &&
+                            jsonData.tables[i].indexes.length >= 1) {
+                            for (let j = 0; j < jsonData.tables[i].indexes.length; j++) {
+                                statements.push(`CREATE INDEX IF NOT EXISTS ${jsonData.tables[i].indexes[j].name} ON ${jsonData.tables[i].name} (${jsonData.tables[i].indexes[j].column});`);
+                            }
+                        }
+                    }
+                    resolve(statements);
+                });
+            });
+        }
+        /**
+         * CreateDataTable
+         * @param mDB
+         * @param table
+         * @param mode
+         */
+        createDataTable(mDB, table, mode) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    let lastId = -1;
+                    try {
+                        // Check if the table exists
+                        const tableExists = yield this.isTableExists(mDB, true, table.name);
+                        if (!tableExists) {
+                            reject(new Error('CreateDataTable: Table ' + `${table.name} does not exist`));
+                        }
+                        // Get the column names and types
+                        const tableNamesTypes = yield this.getTableColumnNamesTypes(mDB, table.name);
+                        const tableColumnTypes = tableNamesTypes.types;
+                        const tableColumnNames = tableNamesTypes.names;
+                        if (tableColumnTypes.length === 0) {
+                            reject(new Error('CreateDataTable: Table ' + `${table.name} info does not exist`));
+                        }
+                        // Loop on Table Values
+                        for (let j = 0; j < table.values.length; j++) {
+                            // Check the row number of columns
+                            if (table.values[j].length != tableColumnTypes.length) {
+                                reject(new Error(`CreateDataTable: Table ${table.name} ` +
+                                    `values row ${j} not correct length`));
+                            }
+                            // Check the column's type before proceeding
+                            const isColumnTypes = yield this.checkColumnTypes(tableColumnTypes, table.values[j]);
+                            if (!isColumnTypes) {
+                                reject(new Error(`CreateDataTable: Table ${table.name} ` +
+                                    `values row ${j} not correct types`));
+                            }
+                            const retisIdExists = yield this.isIdExists(mDB, table.name, tableColumnNames[0], table.values[j][0]);
+                            let stmt;
+                            if (mode === 'full' || (mode === 'partial' && !retisIdExists)) {
+                                // Insert
+                                const nameString = tableColumnNames.join();
+                                const questionMarkString = yield this.createQuestionMarkString(tableColumnNames.length);
+                                stmt = `INSERT INTO ${table.name} (${nameString}) VALUES (`;
+                                stmt += `${questionMarkString});`;
+                            }
+                            else {
+                                // Update
+                                const setString = yield this.setNameForUpdate(tableColumnNames);
+                                if (setString.length === 0) {
+                                    reject(new Error(`CreateDataTable: Table ${table.name} ` +
+                                        `values row ${j} not set to String`));
+                                }
+                                stmt =
+                                    `UPDATE ${table.name} SET ${setString} WHERE ` +
+                                        `${tableColumnNames[0]} = ${table.values[j][0]};`;
+                            }
+                            lastId = yield this._uSQLite.prepareRun(mDB, stmt, table.values[j]);
+                            if (lastId < 0) {
+                                reject(new Error('CreateDataTable: lastId < 0'));
+                            }
+                        }
+                        resolve(lastId);
+                    }
+                    catch (err) {
+                        reject(new Error(`CreateDataTable: ${err.message}`));
+                    }
+                }));
+            });
+        }
+        /**
+         * GetTableColumnNamesTypes
+         * @param mDB
+         * @param tableName
+         */
+        getTableColumnNamesTypes(mDB, tableName) {
+            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                let resQuery = [];
+                let retNames = [];
+                let retTypes = [];
+                const query = `PRAGMA table_info('${tableName}');`;
+                try {
+                    resQuery = yield this._uSQLite.queryAll(mDB, query, []);
+                    if (resQuery.length > 0) {
+                        for (let i = 0; i < resQuery.length; i++) {
+                            retNames.push(resQuery[i].name);
+                            retTypes.push(resQuery[i].type);
+                        }
+                    }
+                    resolve({ names: retNames, types: retTypes });
+                }
+                catch (err) {
+                    reject(new Error('GetTableColumnNamesTypes: ' + `${err.message}`));
+                }
+            }));
+        }
+        /**
+         * CheckColumnTypes
+         * @param tableTypes
+         * @param rowValues
+         */
+        checkColumnTypes(tableTypes, rowValues) {
+            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                let isType = true;
+                for (let i = 0; i < rowValues.length; i++) {
+                    if (rowValues[i].toString().toUpperCase() != 'NULL') {
+                        try {
+                            yield this.isType(tableTypes[i], rowValues[i]);
+                        }
+                        catch (err) {
+                            reject(new Error('checkColumnTypes: Type not found'));
+                        }
+                    }
+                }
+                resolve(isType);
+            }));
+        }
+        /**
+         * IsType
+         * @param type
+         * @param value
+         */
+        isType(type, value) {
+            return new Promise((resolve, reject) => {
+                let ret = false;
+                if (type === 'NULL' && typeof value === 'object')
+                    ret = true;
+                if (type === 'TEXT' && typeof value === 'string')
+                    ret = true;
+                if (type === 'INTEGER' && typeof value === 'number')
+                    ret = true;
+                if (type === 'REAL' && typeof value === 'number')
+                    ret = true;
+                if (type === 'BLOB' && typeof value === 'string')
+                    ret = true;
+                if (ret) {
+                    resolve();
+                }
+                else {
+                    reject(new Error('IsType: not a SQL Type'));
+                }
+            });
+        }
+        /**
+         * IsIdExists
+         * @param db
+         * @param dbName
+         * @param firstColumnName
+         * @param key
+         */
+        isIdExists(db, dbName, firstColumnName, key) {
+            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                let ret = false;
+                const query = `SELECT ${firstColumnName} FROM ` +
+                    `${dbName} WHERE ${firstColumnName} = ${key};`;
+                const resQuery = yield this._uSQLite.queryAll(db, query, []);
+                if (resQuery.length === 1)
+                    ret = true;
+                resolve(ret);
+            }));
+        }
+        /**
+         * CreateQuestionMarkString
+         * @param length
+         */
+        createQuestionMarkString(length) {
+            return new Promise((resolve, reject) => {
+                var retString = '';
+                for (let i = 0; i < length; i++) {
+                    retString += '?,';
+                }
+                if (retString.length > 1) {
+                    retString = retString.slice(0, -1);
+                    resolve(retString);
+                }
+                else {
+                    reject(new Error('CreateQuestionMarkString: length = 0'));
+                }
+            });
+        }
+        /**
+         * SetNameForUpdate
+         * @param names
+         */
+        setNameForUpdate(names) {
+            return new Promise((resolve, reject) => {
+                var retString = '';
+                for (let i = 0; i < names.length; i++) {
+                    retString += `${names[i]} = ? ,`;
+                }
+                if (retString.length > 1) {
+                    retString = retString.slice(0, -1);
+                    resolve(retString);
+                }
+                else {
+                    reject(new Error('SetNameForUpdate: length = 0'));
+                }
+            });
+        }
+        /**
+         * IsJsonSQLite
+         * @param obj
+         */
+        isJsonSQLite(obj) {
+            const keyFirstLevel = [
+                'database',
+                'version',
+                'encrypted',
+                'mode',
+                'tables',
+            ];
+            if (obj == null ||
+                (Object.keys(obj).length === 0 && obj.constructor === Object))
+                return false;
+            for (var key of Object.keys(obj)) {
+                if (keyFirstLevel.indexOf(key) === -1)
+                    return false;
+                if (key === 'database' && typeof obj[key] != 'string')
+                    return false;
+                if (key === 'version' && typeof obj[key] != 'number')
+                    return false;
+                if (key === 'encrypted' && typeof obj[key] != 'boolean')
+                    return false;
+                if (key === 'mode' && typeof obj[key] != 'string')
+                    return false;
+                if (key === 'tables' && typeof obj[key] != 'object')
+                    return false;
+                if (key === 'tables') {
+                    for (let i = 0; i < obj[key].length; i++) {
+                        const retTable = this.isTable(obj[key][i]);
+                        if (!retTable)
+                            return false;
+                    }
+                }
+            }
+            return true;
+        }
+        /**
+         * IsTable
+         * @param obj
+         */
+        isTable(obj) {
+            const keyTableLevel = [
+                'name',
+                'schema',
+                'indexes',
+                'values',
+            ];
+            let nbColumn = 0;
+            if (obj == null ||
+                (Object.keys(obj).length === 0 && obj.constructor === Object))
+                return false;
+            for (var key of Object.keys(obj)) {
+                if (keyTableLevel.indexOf(key) === -1)
+                    return false;
+                if (key === 'name' && typeof obj[key] != 'string')
+                    return false;
+                if (key === 'schema' && typeof obj[key] != 'object')
+                    return false;
+                if (key === 'indexes' && typeof obj[key] != 'object')
+                    return false;
+                if (key === 'values' && typeof obj[key] != 'object')
+                    return false;
+                if (key === 'schema') {
+                    obj['schema'].forEach((element) => {
+                        if (element.column) {
+                            nbColumn++;
+                        }
+                    });
+                    for (let i = 0; i < nbColumn; i++) {
+                        const retSchema = this.isSchema(obj[key][i]);
+                        if (!retSchema)
+                            return false;
+                    }
+                }
+                if (key === 'indexes') {
+                    for (let i = 0; i < obj[key].length; i++) {
+                        const retIndexes = this.isIndexes(obj[key][i]);
+                        if (!retIndexes)
+                            return false;
+                    }
+                }
+                if (key === 'values') {
+                    if (nbColumn > 0) {
+                        for (let i = 0; i < obj[key].length; i++) {
+                            if (typeof obj[key][i] != 'object' ||
+                                obj[key][i].length != nbColumn)
+                                return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+        /**
+         * IsSchema
+         * @param obj
+         */
+        isSchema(obj) {
+            const keySchemaLevel = ['column', 'value', 'foreignkey'];
+            if (obj == null ||
+                (Object.keys(obj).length === 0 && obj.constructor === Object))
+                return false;
+            for (var key of Object.keys(obj)) {
+                if (keySchemaLevel.indexOf(key) === -1)
+                    return false;
+                if (key === 'column' && typeof obj[key] != 'string')
+                    return false;
+                if (key === 'value' && typeof obj[key] != 'string')
+                    return false;
+                if (key === 'foreignkey' && typeof obj[key] != 'string')
+                    return false;
+            }
+            return true;
+        }
+        /**
+         * isIndexes
+         * @param obj
+         */
+        isIndexes(obj) {
+            const keyIndexesLevel = ['name', 'column'];
+            if (obj == null ||
+                (Object.keys(obj).length === 0 && obj.constructor === Object))
+                return false;
+            for (var key of Object.keys(obj)) {
+                if (keyIndexesLevel.indexOf(key) === -1)
+                    return false;
+                if (key === 'name' && typeof obj[key] != 'string')
+                    return false;
+                if (key === 'column' && typeof obj[key] != 'string')
+                    return false;
+            }
+            return true;
+        }
+        /**
+         * checkSchemaValidity
+         * @param schema
+         */
+        checkSchemaValidity(schema) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    for (let i = 0; i < schema.length; i++) {
+                        let sch = {};
+                        let keys = Object.keys(schema[i]);
+                        if (keys.includes('column')) {
+                            sch.column = schema[i].column;
+                        }
+                        if (keys.includes('value')) {
+                            sch.value = schema[i].value;
+                        }
+                        if (keys.includes('foreignkey')) {
+                            sch.foreignkey = schema[i].foreignkey;
+                        }
+                        let isValid = this.isSchema(sch);
+                        if (!isValid) {
+                            reject(new Error(`CheckSchemaValidity: schema[${i}] not valid`));
+                        }
+                    }
+                    resolve();
+                }));
+            });
+        }
+        /**
+         * checkIndexesSchemaValidity
+         * @param indexes
+         */
+        checkIndexesValidity(indexes) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    for (let i = 0; i < indexes.length; i++) {
+                        let index = {};
+                        let keys = Object.keys(indexes[i]);
+                        if (keys.includes('column')) {
+                            index.column = indexes[i].column;
+                        }
+                        if (keys.includes('name')) {
+                            index.name = indexes[i].name;
+                        }
+                        let isValid = this.isIndexes(index);
+                        if (!isValid) {
+                            reject(new Error(`CheckIndexesValidity: indexes[${i}] not valid`));
+                        }
+                    }
+                    resolve();
+                }));
             });
         }
     }
@@ -3155,28 +3685,50 @@ var capacitorPlugin = (function (exports) {
                     stmt += `type = '${type}' AND name NOT LIKE 'sqlite_%';`;
                     try {
                         let elements = yield this._uSQLite.queryAll(db, stmt, []);
-                        if (elements.length === 0) {
-                            reject(new Error(`${msg}: get ${type}'s names` + ' failed'));
-                        }
-                        let upType = type.toUpperCase();
-                        let statements = [];
-                        for (let i = 0; i < elements.length; i++) {
-                            let stmt = `DROP ${upType} IF EXISTS `;
-                            stmt += `${elements[i].name};`;
-                            statements.push(stmt);
-                        }
-                        if (statements.length > 0) {
+                        if (elements.length > 0) {
+                            let upType = type.toUpperCase();
+                            let statements = [];
+                            for (let i = 0; i < elements.length; i++) {
+                                let stmt = `DROP ${upType} IF EXISTS `;
+                                stmt += `${elements[i].name};`;
+                                statements.push(stmt);
+                            }
                             for (let i = 0; i < statements.length; i++) {
                                 const lastId = yield this._uSQLite.prepareRun(db, statements[i], []);
                                 if (lastId < 0) {
                                     reject(new Error(`${msg}: lastId < 0`));
                                 }
                             }
-                            resolve();
                         }
+                        resolve();
                     }
                     catch (err) {
                         reject(new Error(`${msg}: ${err.message}`));
+                    }
+                }));
+            });
+        }
+        /**
+         * DropAll
+         * Drop all database's elements
+         * @param db
+         */
+        dropAll(db) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    try {
+                        // drop tables
+                        yield this.dropElements(db, 'table');
+                        // drop indexes
+                        yield this.dropElements(db, 'index');
+                        // drop triggers
+                        yield this.dropElements(db, 'trigger');
+                        // vacuum the database
+                        yield this._uSQLite.prepareRun(db, 'VACUUM;', []);
+                        resolve();
+                    }
+                    catch (err) {
+                        reject(new Error(`DropAll: ${err.message}`));
                     }
                 }));
             });
@@ -3539,6 +4091,719 @@ var capacitorPlugin = (function (exports) {
         }
     }
 
+    class ImportFromJson {
+        constructor() {
+            this._uJson = new UtilsJson();
+            this._uSQLite = new UtilsSQLite();
+            this._uDrop = new UtilsDrop();
+        }
+        /**
+         * CreateDatabaseSchema
+         * @param mDB
+         * @param jsonData
+         */
+        createDatabaseSchema(mDB, jsonData) {
+            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                let changes = -1;
+                const version = jsonData.version;
+                try {
+                    // set Foreign Keys On
+                    yield this._uSQLite.setForeignKeyConstraintsEnabled(mDB, true);
+                    // set User Version PRAGMA
+                    yield this._uSQLite.setVersion(mDB, version);
+                    // DROP ALL when mode="full"
+                    if (jsonData.mode === 'full') {
+                        yield this._uDrop.dropAll(mDB);
+                    }
+                    // create database schema
+                    changes = yield this._uJson.createSchema(mDB, jsonData);
+                    resolve(changes);
+                }
+                catch (err) {
+                    reject(new Error('CreateDatabaseSchema: ' + `${err.message}`));
+                }
+            }));
+        }
+        createTablesData(mDB, jsonData) {
+            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                let changes = 0;
+                let isValue = false;
+                let lastId = -1;
+                let msg = '';
+                let initChanges = -1;
+                try {
+                    initChanges = yield this._uSQLite.dbChanges(mDB);
+                    // start a transaction
+                    yield this._uSQLite.beginTransaction(mDB, true);
+                }
+                catch (err) {
+                    reject(new Error(`createTablesData: ${err.message}`));
+                }
+                for (let i = 0; i < jsonData.tables.length; i++) {
+                    if (jsonData.tables[i].values != null &&
+                        jsonData.tables[i].values.length >= 1) {
+                        // Create the table's data
+                        try {
+                            lastId = yield this._uJson.createDataTable(mDB, jsonData.tables[i], jsonData.mode);
+                            if (lastId < 0)
+                                break;
+                            isValue = true;
+                        }
+                        catch (err) {
+                            msg = err.message;
+                            isValue = false;
+                            break;
+                        }
+                    }
+                }
+                if (isValue) {
+                    try {
+                        yield this._uSQLite.commitTransaction(mDB, true);
+                        changes = (yield this._uSQLite.dbChanges(mDB)) - initChanges;
+                        resolve(changes);
+                    }
+                    catch (err) {
+                        reject(new Error('createTablesData: ' + `${err.message}`));
+                    }
+                }
+                else {
+                    try {
+                        yield this._uSQLite.rollbackTransaction(mDB, true);
+                        reject(new Error(`createTablesData: ${msg}`));
+                    }
+                    catch (err) {
+                        reject(new Error('createTablesData: ' + `${err.message}: ${msg}`));
+                    }
+                }
+            }));
+        }
+    }
+
+    class ExportToJson {
+        constructor() {
+            this._uSQLite = new UtilsSQLite();
+            this._uJson = new UtilsJson();
+            /*
+            private async createJsonTable(
+              mDB: any,
+              nTable: any,
+              mode: string,
+              modTables: any,
+            ): Promise<JsonTable> {
+              return new Promise(async (resolve, reject) => {
+                let table: JsonTable = {} as JsonTable;
+                //            let isSchema: boolean = false;
+                //            let isIndexes: boolean = false;
+                //            let isTriggers: boolean = false;
+                //            let isValues: boolean = false;
+                table.name = nTable.name;
+                try {
+                  if (
+                    mode === 'full' ||
+                    (mode === 'partial' && modTables[table.name] === 'Create')
+                  ) {
+                    // create JsonSchema
+                    const schema: JsonColumn[] = await this.createJsonTableSchema(nTable);
+                    table.schema = schema;
+                    //                    isSchema = true;
+                    // create JsonIndexes
+                    const indexes: JsonIndex[] = await this.createJsonTableIndexes(
+                      mDB,
+                      nTable,
+                    );
+                    table.indexes = indexes;
+                    //                    isIndexes = true;
+                    // create Triggers
+                  }
+          
+                  resolve(table);
+                } catch (err) {
+                  reject(new Error(`CreateJsonTable: ${err.message}`));
+                }
+              });
+            }
+            private async createJsonTableSchema(table: any): Promise<JsonColumn[]> {
+              return new Promise(async (resolve, reject) => {
+                try {
+                  let schema: Array<JsonColumn> = [];
+                  // take the substring between parenthesis
+          
+                  let openPar: number = table.sql.indexOf('(');
+                  let closePar: number = table.sql.lastIndexOf(')');
+                  let sstr: String = table.sql.substring(openPar + 1, closePar);
+                  let isStrfTime: boolean = false;
+                  if (sstr.includes('strftime')) isStrfTime = true;
+                  let sch: Array<string> = sstr.replace(/\n/g, '').split(',');
+                  if (isStrfTime) {
+                    let nSch: string[] = [];
+                    for (let j: number = 0; j < sch.length; j++) {
+                      if (sch[j].includes('strftime')) {
+                        nSch.push(sch[j] + ',' + sch[j + 1]);
+                        j++;
+                      } else {
+                        nSch.push(sch[j]);
+                      }
+                    }
+                    sch = [...nSch];
+                  }
+                  for (let j: number = 0; j < sch.length; j++) {
+                    const rstr = sch[j].trim();
+                    let idx = rstr.indexOf(' ');
+                    //find the index of the first
+                    let row: Array<string> = [rstr.slice(0, idx), rstr.slice(idx + 1)];
+                    if (row.length != 2) {
+                      reject(
+                        new Error(
+                          'CreateJsonTableSchema: ' + 'failed in returning sql statement',
+                        ),
+                      );
+                    }
+                    if (row[0].toUpperCase() != 'FOREIGN') {
+                      schema.push({ column: row[0], value: row[1] });
+                    } else {
+                      const oPar: number = rstr.indexOf('(');
+                      const cPar: number = rstr.indexOf(')');
+                      row = [rstr.slice(oPar + 1, cPar), rstr.slice(cPar + 2)];
+                      if (row.length != 2) {
+                        reject(
+                          new Error(
+                            'CreateJsonTableSchema: ' +
+                              'failed in returning sql FOREIGN statement',
+                          ),
+                        );
+                      }
+                      schema.push({ foreignkey: row[0], value: row[1] });
+                    }
+                  }
+                  console.log('schema ' + JSON.stringify(schema));
+                  resolve(schema);
+                } catch (err) {
+                  reject(new Error(`CreateJsonTableSchema: ${err.message}`));
+                }
+              });
+            }
+            private async createJsonTableIndexes(
+              mDB: any,
+              table: any,
+            ): Promise<JsonIndex[]> {
+              return new Promise(async (resolve, reject) => {
+                try {
+                  let indexes: JsonIndex[] = [];
+                  console.log('mDB ' + JSON.stringify(mDB));
+                  console.log('table ' + JSON.stringify(table));
+                  resolve(indexes);
+                } catch (err) {
+                  reject(new Error(`CreateJsonTableIndexes: ${err.message}`));
+                }
+              });
+            }
+          */
+        }
+        /**
+         * CreateExportObject
+         * @param mDB
+         * @param sqlObj
+         */
+        createExportObject(mDB, sqlObj) {
+            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                let retObj = {};
+                let tables = [];
+                try {
+                    // get Table's name
+                    let resTables = yield this.getTablesNameSQL(mDB);
+                    if (resTables.length === 0) {
+                        reject(new Error("createExportObject: table's names failed"));
+                    }
+                    else {
+                        switch (sqlObj.mode) {
+                            case 'partial': {
+                                tables = yield this.getTablesPartial(mDB, resTables);
+                                break;
+                            }
+                            case 'full': {
+                                tables = yield this.getTablesFull(mDB, resTables);
+                                break;
+                            }
+                            default: {
+                                reject(new Error('createExportObject: expMode ' + sqlObj.mode + ' not defined'));
+                                break;
+                            }
+                        }
+                        if (tables.length > 0) {
+                            retObj.database = sqlObj.database;
+                            retObj.version = sqlObj.version;
+                            retObj.encrypted = sqlObj.encrypted;
+                            retObj.mode = sqlObj.mode;
+                            retObj.tables = tables;
+                        }
+                    }
+                }
+                catch (err) {
+                    reject(new Error('createExportObject: ' + err.message));
+                }
+                finally {
+                    resolve(retObj);
+                }
+            }));
+        }
+        /**
+         * GetTablesNameSQL
+         * @param mDb
+         */
+        getTablesNameSQL(mDb) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    let sql = 'SELECT name,sql FROM sqlite_master WHERE ';
+                    sql += "type='table' AND name NOT LIKE 'sync_table' ";
+                    sql += "AND name NOT LIKE '_temp_%' ";
+                    sql += "AND name NOT LIKE 'sqlite_%';";
+                    let retQuery = [];
+                    try {
+                        retQuery = yield this._uSQLite.queryAll(mDb, sql, []);
+                    }
+                    catch (err) {
+                        reject(new Error(`getTablesNames: ${err.message}`));
+                    }
+                    finally {
+                        resolve(retQuery);
+                    }
+                }));
+            });
+        }
+        /**
+         * GetSyncDate
+         * @param mDb
+         */
+        getSyncDate(mDb) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => {
+                    let retDate = -1;
+                    // get the last sync date
+                    let stmt = `SELECT sync_date FROM sync_table;`;
+                    mDb.get(stmt, [], (err, row) => {
+                        // process the row here
+                        if (err) {
+                            reject(new Error(`GetSyncDate: ${err.message}`));
+                        }
+                        else {
+                            if (row != null) {
+                                const key = Object.keys(row)[0];
+                                retDate = row[key];
+                                resolve(retDate);
+                            }
+                            else {
+                                reject(new Error(`GetSyncDate: no syncDate`));
+                            }
+                        }
+                    });
+                });
+            });
+        }
+        /**
+         * GetTablesFull
+         * @param mDb
+         * @param resTables
+         */
+        getTablesFull(mDb, resTables) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    let tables = [];
+                    try {
+                        // Loop through the tables
+                        for (let i = 0; i < resTables.length; i++) {
+                            let tableName;
+                            let sqlStmt;
+                            if (resTables[i].name) {
+                                tableName = resTables[i].name;
+                            }
+                            else {
+                                reject(new Error('GetTablesFull: no name'));
+                                break;
+                            }
+                            if (resTables[i].sql) {
+                                sqlStmt = resTables[i].sql;
+                            }
+                            else {
+                                reject(new Error('GetTablesFull: no sql'));
+                                break;
+                            }
+                            let table = {};
+                            // create Table's Schema
+                            const schema = yield this.getSchema(sqlStmt, tableName);
+                            if (schema.length === 0) {
+                                reject(new Error('GetTablesFull: no Schema returned'));
+                                break;
+                            }
+                            // check schema validity
+                            yield this._uJson.checkSchemaValidity(schema);
+                            // create Table's indexes if any
+                            const indexes = yield this.getIndexes(mDb, tableName);
+                            if (indexes.length > 0) {
+                                // check indexes validity
+                                yield this._uJson.checkIndexesValidity(indexes);
+                            }
+                            // create Table's Data
+                            const query = `SELECT * FROM ${tableName};`;
+                            const values = yield this.getValues(mDb, query, tableName);
+                            table.name = tableName;
+                            if (schema.length > 0) {
+                                table.schema = schema;
+                            }
+                            else {
+                                reject(new Error(`GetTablesFull: must contain schema`));
+                                break;
+                            }
+                            if (indexes.length > 0) {
+                                table.indexes = indexes;
+                            }
+                            if (values.length > 0) {
+                                table.values = values;
+                            }
+                            if (Object.keys(table).length <= 1) {
+                                reject(new Error(`GetTablesFull: table ${tableName} is not a jsonTable`));
+                            }
+                            tables.push(table);
+                        }
+                    }
+                    catch (err) {
+                        reject(new Error(`GetTablesFull: ${err.message}`));
+                    }
+                    finally {
+                        resolve(tables);
+                    }
+                }));
+            });
+        }
+        /**
+         * GetSchema
+         * @param mDb
+         * @param sqlStmt
+         * @param tableName
+         */
+        getSchema(sqlStmt, tableName) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    let schema = [];
+                    // take the substring between parenthesis
+                    let openPar = sqlStmt.indexOf('(');
+                    let closePar = sqlStmt.lastIndexOf(')');
+                    let sstr = sqlStmt.substring(openPar + 1, closePar);
+                    let isStrfTime = false;
+                    if (sstr.includes('strftime'))
+                        isStrfTime = true;
+                    let sch = sstr.replace(/\n/g, '').split(',');
+                    if (isStrfTime) {
+                        let nSch = [];
+                        for (let j = 0; j < sch.length; j++) {
+                            if (sch[j].includes('strftime')) {
+                                nSch.push(sch[j] + ',' + sch[j + 1]);
+                                j++;
+                            }
+                            else {
+                                nSch.push(sch[j]);
+                            }
+                        }
+                        sch = [...nSch];
+                    }
+                    for (let j = 0; j < sch.length; j++) {
+                        const rstr = sch[j].trim();
+                        let idx = rstr.indexOf(' ');
+                        //find the index of the first
+                        let row = [rstr.slice(0, idx), rstr.slice(idx + 1)];
+                        if (row.length != 2) {
+                            reject(new Error(`GetSchema: table ${tableName} row length != 2`));
+                            break;
+                        }
+                        if (row[0].toUpperCase() != 'FOREIGN') {
+                            schema.push({ column: row[0], value: row[1] });
+                        }
+                        else {
+                            const oPar = rstr.indexOf('(');
+                            const cPar = rstr.indexOf(')');
+                            row = [rstr.slice(oPar + 1, cPar), rstr.slice(cPar + 2)];
+                            if (row.length != 2) {
+                                reject(new Error(`GetSchema: table ${tableName} row length != 2`));
+                                break;
+                            }
+                            schema.push({ foreignkey: row[0], value: row[1] });
+                        }
+                    }
+                    resolve(schema);
+                }));
+            });
+        }
+        /**
+         * GetIndexes
+         * @param mDb
+         * @param sqlStmt
+         * @param tableName
+         */
+        getIndexes(mDb, tableName) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    let indexes = [];
+                    try {
+                        let stmt = 'SELECT name,tbl_name,sql FROM sqlite_master WHERE ';
+                        stmt += `type = 'index' AND tbl_name = '${tableName}' `;
+                        stmt += `AND sql NOTNULL;`;
+                        const retIndexes = yield this._uSQLite.queryAll(mDb, stmt, []);
+                        if (retIndexes.length > 0) {
+                            for (let j = 0; j < retIndexes.length; j++) {
+                                const keys = Object.keys(retIndexes[j]);
+                                if (keys.length === 3) {
+                                    if (retIndexes[j]['tbl_name'] === tableName) {
+                                        const sql = retIndexes[j]['sql'];
+                                        const oPar = sql.lastIndexOf('(');
+                                        const cPar = sql.lastIndexOf(')');
+                                        indexes.push({
+                                            name: retIndexes[j]['name'],
+                                            column: sql.slice(oPar + 1, cPar),
+                                        });
+                                    }
+                                    else {
+                                        reject(new Error(`GetIndexes: Table ${tableName} doesn't match`));
+                                        break;
+                                    }
+                                }
+                                else {
+                                    reject(new Error(`GetIndexes: Table ${tableName} creating indexes`));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    catch (err) {
+                        reject(new Error(`GetIndexes: ${err.message}`));
+                    }
+                    finally {
+                        resolve(indexes);
+                    }
+                }));
+            });
+        }
+        /**
+         * GetValues
+         * @param mDb
+         * @param query
+         * @param tableName
+         */
+        getValues(mDb, query, tableName) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    let values = [];
+                    try {
+                        // get table column names and types
+                        const tableNamesTypes = yield this._uJson.getTableColumnNamesTypes(mDb, tableName);
+                        let rowNames = [];
+                        if (Object.keys(tableNamesTypes).includes('names')) {
+                            rowNames = tableNamesTypes.names;
+                        }
+                        else {
+                            reject(new Error(`GetValues: Table ${tableName} no names`));
+                        }
+                        const retValues = yield this._uSQLite.queryAll(mDb, query, []);
+                        for (let j = 0; j < retValues.length; j++) {
+                            let row = [];
+                            for (let k = 0; k < rowNames.length; k++) {
+                                const nName = rowNames[k];
+                                if (Object.keys(retValues[j]).includes(nName)) {
+                                    row.push(retValues[j][nName]);
+                                }
+                                else {
+                                    row.push('NULL');
+                                }
+                            }
+                            values.push(row);
+                        }
+                    }
+                    catch (err) {
+                        reject(new Error(`GetValues: ${err.message}`));
+                    }
+                    finally {
+                        resolve(values);
+                    }
+                }));
+            });
+        }
+        /**
+         * GetTablesPartial
+         * @param mDb
+         * @param resTables
+         */
+        getTablesPartial(mDb, resTables) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    let tables = [];
+                    let modTables = {};
+                    let syncDate = 0;
+                    let modTablesKeys = [];
+                    try {
+                        // Get the syncDate and the Modified Tables
+                        const partialModeData = yield this.getPartialModeData(mDb, resTables);
+                        if (Object.keys(partialModeData).includes('syncDate')) {
+                            syncDate = partialModeData.syncDate;
+                        }
+                        if (Object.keys(partialModeData).includes('modTables')) {
+                            modTables = partialModeData.modTables;
+                            modTablesKeys = Object.keys(modTables);
+                        }
+                        // Loop trough tables
+                        for (let i = 0; i < resTables.length; i++) {
+                            let tableName = '';
+                            let sqlStmt = '';
+                            if (resTables[i].name) {
+                                tableName = resTables[i].name;
+                            }
+                            else {
+                                reject(new Error('GetTablesFull: no name'));
+                                break;
+                            }
+                            if (resTables[i].sql) {
+                                sqlStmt = resTables[i].sql;
+                            }
+                            else {
+                                reject(new Error('GetTablesFull: no sql'));
+                                break;
+                            }
+                            if (modTablesKeys.length == 0 ||
+                                modTablesKeys.indexOf(tableName) === -1 ||
+                                modTables[tableName] == 'No') {
+                                continue;
+                            }
+                            let table = {};
+                            let schema = [];
+                            let indexes = [];
+                            table.name = resTables[i];
+                            if (modTables[table.name] === 'Create') {
+                                // create Table's Schema
+                                schema = yield this.getSchema(sqlStmt, tableName);
+                                if (schema.length > 0) {
+                                    // check schema validity
+                                    yield this._uJson.checkSchemaValidity(schema);
+                                }
+                                // create Table's indexes if any
+                                indexes = yield this.getIndexes(mDb, tableName);
+                                if (indexes.length > 0) {
+                                    // check indexes validity
+                                    yield this._uJson.checkIndexesValidity(indexes);
+                                }
+                            }
+                            // create Table's Data
+                            let query = '';
+                            if (modTables[tableName] === 'Create') {
+                                query = `SELECT * FROM ${tableName};`;
+                            }
+                            else {
+                                query =
+                                    `SELECT * FROM ${tableName} ` +
+                                        `WHERE last_modified > ${syncDate};`;
+                            }
+                            const values = yield this.getValues(mDb, query, tableName);
+                            // check the table object validity
+                            table.name = tableName;
+                            if (schema.length > 0) {
+                                table.schema = schema;
+                            }
+                            if (indexes.length > 0) {
+                                table.indexes = indexes;
+                            }
+                            if (values.length > 0) {
+                                table.values = values;
+                            }
+                            if (Object.keys(table).length <= 1) {
+                                reject(new Error(`GetTablesPartial: table ${tableName} is not a jsonTable`));
+                            }
+                            tables.push(table);
+                        }
+                    }
+                    catch (err) {
+                        reject(new Error(`GetTablesPartial: ${err.message}`));
+                    }
+                    finally {
+                        resolve(tables);
+                    }
+                }));
+            });
+        }
+        /**
+         * GetPartialModeData
+         * @param mDb
+         * @param resTables
+         */
+        getPartialModeData(mDb, resTables) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    let retData = {};
+                    try {
+                        // get the synchronization date
+                        const syncDate = yield this.getSyncDate(mDb);
+                        if (syncDate <= 0) {
+                            reject(new Error(`GetPartialModeData: no syncDate`));
+                        }
+                        // get the tables which have been updated
+                        // since last synchronization
+                        const modTables = yield this.getTablesModified(mDb, resTables, syncDate);
+                        if (modTables.length <= 0) {
+                            reject(new Error(`GetPartialModeData: no modTables`));
+                        }
+                        retData.syncDate = syncDate;
+                        retData.modTables = modTables;
+                    }
+                    catch (err) {
+                        reject(new Error(`GetPartialModeData: ${err.message}`));
+                    }
+                    finally {
+                        resolve(retData);
+                    }
+                }));
+            });
+        }
+        getTablesModified(db, tables, syncDate) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                    try {
+                        let retModified = {};
+                        for (let i = 0; i < tables.length; i++) {
+                            let mode;
+                            // get total count of the table
+                            let stmt = 'SELECT count(*) AS tcount  ';
+                            stmt += `FROM ${tables[i].name};`;
+                            let retQuery = yield this._uSQLite.queryAll(db, stmt, []);
+                            if (retQuery.length != 1) {
+                                reject(new Error('GetTableModified: total ' + 'count not returned'));
+                            }
+                            const totalCount = retQuery[0]['tcount'];
+                            // get total count of modified since last sync
+                            stmt = 'SELECT count(*) AS mcount FROM ';
+                            stmt += `${tables[i].name} WHERE last_modified > `;
+                            stmt += `${syncDate};`;
+                            retQuery = yield this._uSQLite.queryAll(db, stmt, []);
+                            if (retQuery.length != 1)
+                                break;
+                            const totalModifiedCount = retQuery[0]['mcount'];
+                            if (totalModifiedCount === 0) {
+                                mode = 'No';
+                            }
+                            else if (totalCount === totalModifiedCount) {
+                                mode = 'Create';
+                            }
+                            else {
+                                mode = 'Modified';
+                            }
+                            const key = tables[i].name;
+                            retModified[key] = mode;
+                            if (i === tables.length - 1)
+                                resolve(retModified);
+                        }
+                    }
+                    catch (err) {
+                        reject(new Error(`GetTableModified: ${err.message}`));
+                    }
+                }));
+            });
+        }
+    }
+
     //1234567890123456789012345678901234567890123456789012345678901234567890
     class Database {
         constructor(dbName, encrypted, mode, version, upgDict) {
@@ -3548,6 +4813,8 @@ var capacitorPlugin = (function (exports) {
             this._uGlobal = new GlobalSQLite();
             this._uEncrypt = new UtilsEncryption();
             this._uUpg = new UtilsUpgrade();
+            this._iFJson = new ImportFromJson();
+            this._eTJson = new ExportToJson();
             this._vUpgDict = {};
             this._dbName = dbName;
             this._encrypted = encrypted;
@@ -3596,15 +4863,8 @@ var capacitorPlugin = (function (exports) {
                             yield this._uEncrypt.encryptDatabase(this._pathDB, password);
                         }
                         this._mDB = yield this._uSQLite.openOrCreateDatabase(this._pathDB, password);
-                        this._isDBOpen = true;
-                        // set Foreign Keys On
-                        yield this._uSQLite.setForeignKeyConstraintsEnabled(this._mDB, true);
-                        // Check Version
                         let curVersion = yield this._uSQLite.getVersion(this._mDB);
-                        if (curVersion === 0) {
-                            yield this._uSQLite.setVersion(this._mDB, 1);
-                            curVersion = yield this._uSQLite.getVersion(this._mDB);
-                        }
+                        this._isDBOpen = true;
                         if (this._version > curVersion) {
                             try {
                                 // execute the upgrade flow process
@@ -3752,7 +5012,9 @@ var capacitorPlugin = (function (exports) {
                     const sDate = Math.round(new Date(syncDate).getTime() / 1000);
                     let stmt = `UPDATE sync_table SET sync_date = `;
                     stmt += `${sDate} WHERE id = 1;`;
+                    console.log(`>>> setSyncDate stmt ${stmt}`);
                     const changes = yield this.executeSQL(stmt);
+                    console.log(`>>> setSyncDate changes ${changes}`);
                     if (changes < 0) {
                         return { result: false, message: 'setSyncDate failed' };
                     }
@@ -3762,6 +5024,32 @@ var capacitorPlugin = (function (exports) {
                 }
                 catch (err) {
                     return { result: false, message: `setSyncDate failed: ${err.message}` };
+                }
+            });
+        }
+        /**
+         * GetSyncDate
+         * store the synchronization date
+         * @returns Promise<{syncDate: number, message: string}>
+         */
+        getSyncDate() {
+            return __awaiter(this, void 0, void 0, function* () {
+                if (!this._isDBOpen) {
+                    let msg = `GetSyncDate: Database ${this._dbName} `;
+                    msg += `not opened`;
+                    return { syncDate: 0, message: msg };
+                }
+                try {
+                    const syncDate = yield this._eTJson.getSyncDate(this._mDB);
+                    if (syncDate > 0) {
+                        return { syncDate: syncDate };
+                    }
+                    else {
+                        return { syncDate: 0, message: `setSyncDate failed` };
+                    }
+                }
+                catch (err) {
+                    return { syncDate: 0, message: `setSyncDate failed: ${err.message}` };
                 }
             });
         }
@@ -3921,6 +5209,55 @@ var capacitorPlugin = (function (exports) {
                 }));
             });
         }
+        importJson(jsonData) {
+            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                let changes = -1;
+                if (this._isDBOpen) {
+                    try {
+                        // create the database schema
+                        changes = yield this._iFJson.createDatabaseSchema(this._mDB, jsonData);
+                        if (changes != -1) {
+                            // create the tables data
+                            changes = yield this._iFJson.createTablesData(this._mDB, jsonData);
+                        }
+                        resolve(changes);
+                    }
+                    catch (err) {
+                        reject(new Error(`ImportJson: ${err.message}`));
+                    }
+                }
+                else {
+                    reject(new Error(`ImportJson: database is closed`));
+                }
+            }));
+        }
+        exportJson(mode) {
+            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+                const inJson = {};
+                inJson.database = this._dbName.slice(0, -9);
+                inJson.version = this._version;
+                inJson.encrypted = false;
+                inJson.mode = mode;
+                if (this._isDBOpen) {
+                    try {
+                        const retJson = yield this._eTJson.createExportObject(this._mDB, inJson);
+                        const isValid = this._uJson.isJsonSQLite(retJson);
+                        if (isValid) {
+                            resolve(retJson);
+                        }
+                        else {
+                            reject(new Error(`ExportJson: retJson not valid`));
+                        }
+                    }
+                    catch (err) {
+                        reject(new Error(`ExportJson: ${err.message}`));
+                    }
+                }
+                else {
+                    reject(new Error(`ExportJson: database is closed`));
+                }
+            }));
+        }
     }
 
     //1234567890123456789012345678901234567890123456789012345678901234567890
@@ -3934,6 +5271,7 @@ var capacitorPlugin = (function (exports) {
             this.RemoteRef = null;
             this._dbDict = {};
             this._uFile = new UtilsFile();
+            this._uJson = new UtilsJson();
             this._versionUpgrades = {};
             console.log('CapacitorSQLite Electron');
             this.RemoteRef = remote;
@@ -4004,8 +5342,6 @@ var capacitorPlugin = (function (exports) {
         }
         echo(options) {
             return __awaiter(this, void 0, void 0, function* () {
-                console.log('ECHO in CapacitorSQLiteElectronWeb ', options);
-                console.log(this.RemoteRef);
                 const ret = {};
                 ret.value = options.value;
                 return ret;
@@ -4025,7 +5361,7 @@ var capacitorPlugin = (function (exports) {
                 if (!keys.includes(dbName)) {
                     return Promise.resolve({
                         result: false,
-                        message: 'Open command failed: No available ' + 'connection for ' + dbName,
+                        message: `Open: No available connection for ${dbName}`,
                     });
                 }
                 const mDB = this._dbDict[dbName];
@@ -4055,7 +5391,7 @@ var capacitorPlugin = (function (exports) {
                 if (!keys.includes(dbName)) {
                     return Promise.resolve({
                         result: false,
-                        message: 'Close command failed: No available ' + 'connection for ' + dbName,
+                        message: `Close: No available connection for ${dbName}`,
                     });
                 }
                 const mDB = this._dbDict[dbName];
@@ -4092,7 +5428,7 @@ var capacitorPlugin = (function (exports) {
                 if (!keys.includes(dbName)) {
                     return Promise.resolve({
                         changes: { changes: -1 },
-                        message: 'Execute command failed: No available ' + 'connection for ' + dbName,
+                        message: `Execute: No available connection for ${dbName}`,
                     });
                 }
                 const mDB = this._dbDict[dbName];
@@ -4137,9 +5473,7 @@ var capacitorPlugin = (function (exports) {
                 if (!keys.includes(dbName)) {
                     return Promise.resolve({
                         changes: { changes: -1 },
-                        message: 'ExecuteSet command failed: No available ' +
-                            'connection for ' +
-                            dbName,
+                        message: `ExecuteSet: No available connection for ${dbName}`,
                     });
                 }
                 const mDB = this._dbDict[dbName];
@@ -4148,7 +5482,7 @@ var capacitorPlugin = (function (exports) {
                         !('values' in setOfStatements[i])) {
                         return Promise.reject({
                             changes: { changes: -1 },
-                            message: 'ExecuteSet command failed : Must provide a set as ' +
+                            message: 'ExecuteSet: Must provide a set as ' +
                                 'Array of {statement,values}',
                         });
                     }
@@ -4201,7 +5535,7 @@ var capacitorPlugin = (function (exports) {
                 if (!keys.includes(dbName)) {
                     return Promise.resolve({
                         changes: { changes: -1, lastId: -1 },
-                        message: 'RUN failed: No available ' + 'connection for ' + dbName,
+                        message: `Run: No available connection for ${dbName}`,
                     });
                 }
                 const mDB = this._dbDict[dbName];
@@ -4244,8 +5578,8 @@ var capacitorPlugin = (function (exports) {
                 keys = Object.keys(this._dbDict);
                 if (!keys.includes(dbName)) {
                     return Promise.resolve({
-                        changes: { changes: -1 },
-                        message: 'Query command failed: No available ' + 'connection for ' + dbName,
+                        values: [],
+                        message: `Query: No available connection for ${dbName}`,
                     });
                 }
                 const mDB = this._dbDict[dbName];
@@ -4298,9 +5632,7 @@ var capacitorPlugin = (function (exports) {
                 if (!keys.includes(dbName)) {
                     return Promise.resolve({
                         result: false,
-                        message: 'DeleteDatabase command failed: No ' +
-                            'available connection for ' +
-                            dbName,
+                        message: 'deleteDatabase: No available connection for ' + `${dbName}`,
                     });
                 }
                 const mDB = this._dbDict[dbName];
@@ -4318,31 +5650,116 @@ var capacitorPlugin = (function (exports) {
         }
         isJsonValid(options) {
             return __awaiter(this, void 0, void 0, function* () {
-                const msg = JSON.stringify(options);
-                return Promise.resolve({
-                    result: false,
-                    message: `Method not implemented. ${msg}`,
-                });
+                let keys = Object.keys(options);
+                if (!keys.includes('jsonstring')) {
+                    return Promise.resolve({
+                        result: false,
+                        message: 'Must provide a json object',
+                    });
+                }
+                const jsonStrObj = options.jsonstring;
+                const jsonObj = JSON.parse(jsonStrObj);
+                const isValid = this._uJson.isJsonSQLite(jsonObj);
+                if (!isValid) {
+                    return Promise.resolve({
+                        result: false,
+                        message: 'Stringify Json Object not Valid',
+                    });
+                }
+                else {
+                    return Promise.resolve({ result: true });
+                }
             });
         }
         importFromJson(options) {
+            var _a, _b;
             return __awaiter(this, void 0, void 0, function* () {
-                const msg = JSON.stringify(options);
                 const retRes = { changes: -1 };
-                return Promise.reject({
-                    changes: retRes,
-                    message: `Method not implemented. ${msg}`,
-                });
+                let keys = Object.keys(options);
+                if (!keys.includes('jsonstring')) {
+                    return Promise.resolve({
+                        changes: retRes,
+                        message: 'Must provide a json object',
+                    });
+                }
+                const jsonStrObj = options.jsonstring;
+                const jsonObj = JSON.parse(jsonStrObj);
+                const isValid = this._uJson.isJsonSQLite(jsonObj);
+                if (!isValid) {
+                    return Promise.resolve({
+                        changes: retRes,
+                        message: 'Must provide a valid JsonSQLite Object',
+                    });
+                }
+                const vJsonObj = jsonObj;
+                const dbName = `${vJsonObj.database}SQLite.db`;
+                const dbVersion = (_a = vJsonObj.version) !== null && _a !== void 0 ? _a : 1;
+                const encrypted = (_b = vJsonObj.encrypted) !== null && _b !== void 0 ? _b : false;
+                const mode = encrypted ? 'secret' : 'no-encryption';
+                // Create the database
+                let mDb = new Database(dbName, encrypted, mode, dbVersion, {});
+                try {
+                    // Open the database
+                    yield mDb.open();
+                    // Import the JsonSQLite Object
+                    const changes = yield mDb.importJson(vJsonObj);
+                    // Close the database
+                    yield mDb.close();
+                    return Promise.resolve({ changes: { changes: changes } });
+                }
+                catch (err) {
+                    return Promise.resolve({
+                        changes: retRes,
+                        message: `ImportFromJson: ${err.message}`,
+                    });
+                }
             });
         }
         exportToJson(options) {
             return __awaiter(this, void 0, void 0, function* () {
-                const msg = JSON.stringify(options);
-                const retRes = {};
-                return Promise.reject({
-                    export: retRes,
-                    message: `Method not implemented. ${msg}`,
-                });
+                let retRes = {};
+                let keys = Object.keys(options);
+                if (!keys.includes('database')) {
+                    return Promise.resolve({
+                        export: retRes,
+                        message: 'Must provide a database name',
+                    });
+                }
+                if (!keys.includes('jsonexportmode')) {
+                    return Promise.resolve({
+                        export: retRes,
+                        message: 'Must provide a json export mode',
+                    });
+                }
+                const dbName = options.database;
+                const exportMode = options.jsonexportmode;
+                keys = Object.keys(this._dbDict);
+                if (!keys.includes(dbName)) {
+                    return Promise.resolve({
+                        export: retRes,
+                        message: 'exportToJson: No available connection for ' + `${dbName}`,
+                    });
+                }
+                const mDB = this._dbDict[dbName];
+                try {
+                    const ret = yield mDB.exportJson(exportMode);
+                    const keys = Object.keys(ret);
+                    if (keys.includes('message')) {
+                        return Promise.resolve({
+                            export: retRes,
+                            message: `exportToJson: ${ret.message}`,
+                        });
+                    }
+                    else {
+                        return Promise.resolve({ export: ret });
+                    }
+                }
+                catch (err) {
+                    return Promise.resolve({
+                        export: retRes,
+                        message: `exportToJson: ${err.message}`,
+                    });
+                }
             });
         }
         createSyncTable(options) {
@@ -4359,14 +5776,12 @@ var capacitorPlugin = (function (exports) {
                 if (!keys.includes(dbName)) {
                     return Promise.resolve({
                         changes: { changes: -1 },
-                        message: 'CreateSyncTable command failed: No ' +
-                            'available connection for ' +
-                            dbName,
+                        message: 'CreateSyncTable: No available connection for ' + `${dbName}`,
                     });
                 }
                 const mDB = this._dbDict[dbName];
                 const ret = yield mDB.createSyncTable();
-                if (ret.message == null) {
+                if (ret.message === null) {
                     return Promise.resolve({ changes: ret.changes });
                 }
                 else {
@@ -4395,13 +5810,34 @@ var capacitorPlugin = (function (exports) {
                 if (!keys.includes(dbName)) {
                     return Promise.resolve({
                         result: false,
-                        message: 'SetSyncDate command failed: No ' +
-                            'available connection for ' +
-                            dbName,
+                        message: `SetSyncDate: No available connection for ${dbName}`,
                     });
                 }
                 const mDB = this._dbDict[dbName];
                 const ret = yield mDB.setSyncDate(syncDate);
+                console.log(`$$$ setSyncDate ${JSON.stringify(ret)}`);
+                return Promise.resolve(ret);
+            });
+        }
+        getSyncDate(options) {
+            return __awaiter(this, void 0, void 0, function* () {
+                let keys = Object.keys(options);
+                if (!keys.includes('database')) {
+                    return Promise.resolve({
+                        syncDate: 0,
+                        message: 'Must provide a database name',
+                    });
+                }
+                const dbName = options.database;
+                keys = Object.keys(this._dbDict);
+                if (!keys.includes(dbName)) {
+                    return Promise.resolve({
+                        syncDate: 0,
+                        message: `GetSyncDate: No available connection for ${dbName}`,
+                    });
+                }
+                const mDB = this._dbDict[dbName];
+                const ret = yield mDB.getSyncDate();
                 return Promise.resolve(ret);
             });
         }

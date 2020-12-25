@@ -3,7 +3,8 @@ import { Injectable } from '@angular/core';
 import { Plugins, Capacitor } from '@capacitor/core';
 import '@capacitor-community/sqlite';
 import { SQLiteDBConnection, SQLiteConnection, capSQLiteSet,
-         capEchoResult, capSQLiteResult } from '@capacitor-community/sqlite';
+         capSQLiteChanges, capEchoResult, capSQLiteResult 
+        } from '@capacitor-community/sqlite';
 const { CapacitorSQLite } = Plugins;
 
 @Injectable()
@@ -16,9 +17,9 @@ export class SQLiteService {
 
     constructor() {
     }
-      /**
-   * Plugin Initialization
-   */
+    /**
+     * Plugin Initialization
+     */
     initializePlugin(): Promise<boolean> {
         return new Promise (resolve => {
             this.platform = Capacitor.platform;
@@ -55,6 +56,10 @@ export class SQLiteService {
             }
         });
     }
+    /**
+     * Echo a value
+     * @param value 
+     */
     async echo(value: string): Promise<capEchoResult> {
         console.log("&&&& in echo this.sqlite " + this.sqlite + " &&&&")
         if(this.sqlite != null) {
@@ -63,6 +68,14 @@ export class SQLiteService {
             return null;
         }
     }
+    /**
+     * addUpgradeStatement
+     * @param database 
+     * @param fromVersion 
+     * @param toVersion 
+     * @param statement 
+     * @param set 
+     */
     async addUpgradeStatement(database:string, fromVersion: number,
                               toVersion: number, statement: string,
                               set?: capSQLiteSet[])
@@ -74,7 +87,13 @@ export class SQLiteService {
             return null;
         }                             
     }
-    
+    /**
+     * Create a connection to a database
+     * @param database 
+     * @param encrypted 
+     * @param mode 
+     * @param version 
+     */
     async createConnection(database:string, encrypted: boolean,
                            mode: string, version: number
                            ): Promise<SQLiteDBConnection | null> {
@@ -90,6 +109,10 @@ export class SQLiteService {
             return null;
         }
     }
+    /**
+     * Close a connection to a database
+     * @param database 
+     */
     async closeConnection(database:string): Promise<capSQLiteResult> {
         if(this.sqlite != null) {
             return await this.sqlite.closeConnection(database);
@@ -97,6 +120,10 @@ export class SQLiteService {
             return null;
         }
     }
+    /**
+     * Retrieve an existing connection to a database
+     * @param database 
+     */
     async retrieveConnection(database:string): 
             Promise<SQLiteDBConnection | null | undefined> {
         if(this.sqlite != null) {
@@ -105,6 +132,9 @@ export class SQLiteService {
             return null;
         }
     }
+    /**
+     * Retrieve all existing connections
+     */
     async retrieveAllConnections(): 
                     Promise<Map<string, SQLiteDBConnection>> {
         if(this.sqlite != null) {
@@ -118,12 +148,40 @@ export class SQLiteService {
             return null;
         }               
     }
+    /**
+     * Close all existing connections
+     */
     async closeAllConnections(): Promise<capSQLiteResult> {
         if(this.sqlite != null) {
             return await this.sqlite.closeAllConnections();
         } else {
             return null;
         }
+    }
+    /**
+     * Import from a Json Object
+     * @param jsonstring 
+     */
+    async importFromJson(jsonstring:string): Promise<capSQLiteChanges> {
+        if(this.sqlite != null) {
+            return await this.sqlite
+                                .importFromJson(jsonstring);
+        } else {
+            return null;
+        }
+                    
+    }
+    /**
+     * 
+     * @param jsonstring Check the validity of a given Json Object
+     */
+    async isJsonValid(jsonstring:string): Promise<capSQLiteResult> {
+        if(this.sqlite != null) {
+            return await this.sqlite.isJsonValid(jsonstring);
+        } else {
+            return null;
+        }
+
     }
 
 }

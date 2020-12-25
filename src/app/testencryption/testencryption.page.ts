@@ -1,8 +1,8 @@
 import { Component, AfterViewInit } from '@angular/core';
 import { SQLiteService } from '../services/sqlite.service';
-import { createSchema, twoUsers, twoTests } from '../utils/no-encryption-utils';
-import { createSchemaContacts, setContacts } from '../utils/encrypted-set-utils';
+import { createSchema, twoUsers} from '../utils/no-encryption-utils';
 import { deleteDatabase } from '../utils/db-utils';
+
 @Component({
   selector: 'app-testencryption',
   templateUrl: 'testencryption.page.html',
@@ -17,8 +17,6 @@ export class TestencryptionPage implements AfterViewInit {
   constructor(private _sqlite: SQLiteService) {}
 
   async ngAfterViewInit() {
-    // Initialize the CapacitorSQLite plugin
-//    this.initPlugin = await this._sqlite.initializePlugin();
     console.log("%%%% in TestencryptionPage this._sqlite " + this._sqlite)
 
     const result: boolean = await this.runTest();
@@ -121,21 +119,44 @@ export class TestencryptionPage implements AfterViewInit {
 
     // open db testEncryption
     ret = await db.open();
+    console.log("open encrypted " + JSON.stringify(ret))
     if (!ret.result) {
       return false;
     }
+    // close the connection
+    ret = await this._sqlite.closeConnection("testEncryption"); 
+    console.log("closeConnection encrypted " + JSON.stringify(ret))
+    if(!ret.result) {
+      return false; 
+    }
+    // ************************************************
+    // Work with the encrypted  database
+    // ************************************************
+
+    // initialize the connection
+    db = await this._sqlite
+                .createConnection("testEncryption", true, "secret", 1);
+
+    // open db testEncryption
+    ret = await db.open();
+    console.log("open encrypted " + JSON.stringify(ret))
+    if (!ret.result) {
+      return false;
+    }
+
     // add one user with statement and values              
     sqlcmd = 
                 "INSERT INTO users (name,email,age) VALUES (?,?,?)";
     values = ["Jackson","Jackson@example.com",32];
     ret = await db.run(sqlcmd,values);
-    console.log()
+    console.log("insert encrypted " + JSON.stringify(ret))
     if(ret.changes.lastId !== 5) {
       return false;
     }
 
     // select all users in db
     ret = await db.query("SELECT * FROM users;");
+    console.log("query encrypted " + ret.values.length )
     if(ret.values.length !== 5 || ret.values[0].name !== "Whiteley" ||
                                   ret.values[1].name !== "Jones" ||
                                   ret.values[2].name !== "Simpson" ||
@@ -146,8 +167,10 @@ export class TestencryptionPage implements AfterViewInit {
 
     // delete it for multiple successive tests
     ret = await deleteDatabase(db);
+    console.log("delete database encrypted " + JSON.stringify(ret))
     
     ret = await this._sqlite.closeConnection("testEncryption"); 
+    console.log("closeConnection encrypted " + JSON.stringify(ret))
     if(!ret.result) {
       return false; 
     } else {

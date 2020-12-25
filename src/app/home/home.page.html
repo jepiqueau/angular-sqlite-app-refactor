@@ -15,8 +15,11 @@
 
   <div id="container">
     <ion-button routerLink='/test2dbs' routerDirection="forward" color='primary' expand="block">Test 2 Databases</ion-button> 
-    <ion-button *ngIf="detail" routerLink='/existingconnection' routerDirection="forward" color='primary' expand="block">Test Existing Connection</ion-button> 
+    <ion-button *ngIf="exConn" routerLink='/existingconnection' routerDirection="forward" color='primary' expand="block">Test Existing Connection</ion-button> 
     <ion-button routerLink='/upgradeversion' routerDirection="forward" color='primary' expand="block">Test Upgrade Versions</ion-button> 
     <ion-button routerLink='/encryption' routerDirection="forward" color='primary' expand="block">Test Encryption</ion-button> 
+    <ion-button routerLink='/importjson' routerDirection="forward" color='primary' expand="block">Test Import Json</ion-button> 
+    <ion-button *ngIf="exJson" routerLink='/exportjson' routerDirection="forward" color='primary' expand="block">Test Export Json</ion-button> 
+    <ion-button routerLink='/exportjson59' routerDirection="forward" color='primary' expand="block">Test Export Json #59</ion-button> 
   </div>
 </ion-content>

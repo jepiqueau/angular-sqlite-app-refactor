@@ -29,6 +29,21 @@ const routes: Routes = [
                       .then( m => m.TestupgradeversionPageModule)
   },
   {
+    path: 'importjson',
+    loadChildren: () => import('./testimportjson/testimportjson.module')
+                      .then( m => m.TestimportjsonPageModule)
+  },
+  {
+    path: 'exportjson',
+    loadChildren: () => import('./testexportjson/testexportjson.module')
+                      .then( m => m.TestexportjsonPageModule)
+  },
+  {
+    path: 'exportjson59',
+    loadChildren: () => import('./testexportjson59/testexportjson59.module')
+                      .then( m => m.Testexportjson59PageModule)
+  },
+  {
     path: '',
     redirectTo: 'home',
     pathMatch: 'full'

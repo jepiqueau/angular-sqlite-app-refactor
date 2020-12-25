@@ -85,7 +85,6 @@ export class ExistingconnectionPage implements AfterViewInit {
     // test retrieve all connections
     var retDict: Map<string, any> = await 
                           this._sqlite.retrieveAllConnections();
-    if(retDict.size !== 2) return false;
     if(!retDict.has("testNew") || retDict.get("testNew") != db) {
       return false;
     }
@@ -95,7 +94,7 @@ export class ExistingconnectionPage implements AfterViewInit {
 
     ret = await this._sqlite.closeAllConnections();
 
-    this._detailService.set(false);
+    this._detailService.setExistingConnection(false);
     if(!ret.result) {
       return false; 
     } else {

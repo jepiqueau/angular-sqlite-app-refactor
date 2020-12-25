@@ -2,14 +2,21 @@ import { Injectable } from '@angular/core';
 @Injectable()
 
 export class DetailService {
-    private _detail: boolean;
+    private _existingConn: boolean;
+    private _exportJson: boolean;
 
     constructor() {
     }
-    set(value:boolean) {
-        this._detail = value;
+    setExistingConnection(value:boolean) {
+        this._existingConn = value;
     }
-    get(): boolean {
-        return this._detail;
+    getExistingConnection(): boolean {
+        return this._existingConn;
+    }
+    setExportJson(value:boolean) {
+        this._exportJson = value;
+    }
+    getExportJson(): boolean {
+        return this._exportJson;
     }
 }

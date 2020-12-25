@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS images (
 );
 CREATE TABLE IF NOT EXISTS test56 (
   id INTEGER PRIMARY KEY NOT NULL,
-  name TEXT
+  name TEXT,
+  name1 TEXT
 );
 CREATE INDEX IF NOT EXISTS users_index_name ON users (name);
 CREATE INDEX IF NOT EXISTS users_index_last_modified ON users (last_modified);
