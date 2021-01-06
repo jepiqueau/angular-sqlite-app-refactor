@@ -172,7 +172,7 @@ export class SQLiteService {
                     
     }
     /**
-     * 
+     * Is Json Object Valid
      * @param jsonstring Check the validity of a given Json Object
      */
     async isJsonValid(jsonstring:string): Promise<capSQLiteResult> {
@@ -183,5 +183,15 @@ export class SQLiteService {
         }
 
     }
-
+    /**
+     * Copy databases from public/assets/databases folder to application databases folder
+     */
+    async copyFromAssets(): Promise<capSQLiteResult> { 
+        if (this.sqlite != null) {
+          return await this.sqlite.copyFromAssets();
+        } else {
+          return null;
+        }
+      }
+    
 }
