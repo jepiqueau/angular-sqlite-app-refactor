@@ -131,7 +131,6 @@ const { CapacitorSQLite } = Plugins;
 @Injectable()
 
 export class SQLiteService {
-    handlerPermissions: any;
     sqlite: SQLiteConnection;
     isService: boolean = false;
     platform: string;
@@ -146,35 +145,10 @@ export class SQLiteService {
             this.platform = Capacitor.platform;
             console.log("*** platform " + this.platform)
             const sqlitePlugin: any = CapacitorSQLite;
-            if(this.platform === "android") {
-                this.handlerPermissions = sqlitePlugin.addListener(
-                    'androidPermissionsRequest', async (data:any) => { 
-                    if (data.permissionGranted === 1) {
-                        this.handlerPermissions.remove();
-                        this.sqlite = new SQLiteConnection(sqlitePlugin);
-                        this.isService = true;
-                        resolve(true);
-                    } else {
-                        console.log("Permission not granted");
-                        this.handlerPermissions.remove();
-                        this.sqlite = null;
-                        resolve(false);
-                    }      
-                });
-                try {
-                    console.log("%%%%% before requestPermissions");
-                    sqlitePlugin.requestPermissions();
-                    console.log("%%%%% after requestPermissions");
-                } catch (e) {
-                    console.log("Error requesting permissions " + JSON.stringify(e));
-                    resolve(false);
-                }
-            } else {
-                this.sqlite = new SQLiteConnection(sqlitePlugin);
-                this.isService = true;
-                console.log("$$$ in service this.isService " + this.isService + " $$$")
-                resolve(true);
-            }
+            this.sqlite = new SQLiteConnection(sqlitePlugin);
+            this.isService = true;
+            console.log("$$$ in service this.isService " + this.isService + " $$$")
+            resolve(true);
         });
     }
     async echo(value: string): Promise<capEchoResult> {
