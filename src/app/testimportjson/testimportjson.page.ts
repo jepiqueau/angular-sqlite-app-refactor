@@ -112,6 +112,7 @@ export class TestimportjsonPage implements AfterViewInit {
 
     // select all users in db
     result = await db.query("SELECT * FROM users;");
+    console.log(`result.values ${JSON.stringify(result)}`)
     if(result.values.length !== 6 || 
                   result.values[0].name !== "Whiteley" ||
                   result.values[1].name !== "Jones" ||
@@ -123,6 +124,7 @@ export class TestimportjsonPage implements AfterViewInit {
     }
     // select all messages in db
     result = await db.query("SELECT * FROM messages;");
+    console.log(`result.values ${JSON.stringify(result)}`)
     if(result.values.length !== 4|| 
                   result.values[0].title !== "test post 1" ||
                   result.values[1].title !== "test post 2" ||
@@ -134,13 +136,16 @@ export class TestimportjsonPage implements AfterViewInit {
 
     // select all images in db
     result = await db.query("SELECT * FROM images;");
+    console.log(`result.values ${JSON.stringify(result)}`)
     if(result.values.length !== 2 || 
                   result.values[0].name !== "feather" ||
                   result.values[1].name !== "meowth" ) {
       return false;
     }
+
     // close the connection
     result = await this._sqlite.closeConnection("db-from-json"); 
+    console.log(`result after closeConnection ${JSON.stringify(result)}`)
     if(!result.result) return false; 
 
     this._detailService.setExportJson(true);
