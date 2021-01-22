@@ -49,6 +49,11 @@ const routes: Routes = [
                       .then( m => m.CopyfromassetsPageModule)
   },
   {
+    path: 'exportjson67',
+    loadChildren: () => import('./testexportjson67/testexportjson67.module')
+                      .then( m => m.Testexportjson67PageModule)
+  },
+  {
     path: '',
     redirectTo: 'home',
     pathMatch: 'full'
