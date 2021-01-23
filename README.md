@@ -8,7 +8,7 @@
 <p align="center">
   <img src="https://img.shields.io/maintenance/yes/2021?style=flat-square" />
   <a href="https://github.com/jepiqueau/angular-sqlite-app-refactor"><img src="https://img.shields.io/github/license/jepiqueau/angular-sqlite-app-refactor?style=flat-square" /></a>
-  <a href="https://github.com/jepiqueau/angular-sqlite-app-refactor"><img src="https://img.shields.io/github/package-json/v/jepiqueau/angular-sqlite-app-refactor?style=flat-square" /></a>
+  <a href="https://github.com/jepiqueau/angular-sqlite-app-refactor"><img src="https://img.shields.io/github/package-json/v/jepiqueau/angular-sqlite-app-refactor/main?style=flat-square" /></a>
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 <a href="#contributors-"><img src="https://img.shields.io/badge/all%20contributors-1-orange?style=flat-square" /></a>
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
