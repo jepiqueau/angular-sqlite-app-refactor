@@ -12,7 +12,7 @@ export const dataToImport: any = {
                 {column:"id", value: "INTEGER PRIMARY KEY NOT NULL"},
                 {column:"email", value:"TEXT UNIQUE NOT NULL"},
                 {column:"name", value:"TEXT"},
-                {column:"age", value:"INTEGER"},
+                {column:"age", value:"REAL"},
                 {column:"last_modified", value:"INTEGER"}
             ],
             indexes: [
@@ -21,8 +21,8 @@ export const dataToImport: any = {
                 {name: "index_user_on_email_name", value: "email ASC, name", mode: "UNIQUE"}
             ],
             values: [
-                [1,"Whiteley.com","Whiteley",30,1582536810],
-                [2,"Jones.com","Jones",44,1582812800],
+                [1,"Whiteley.com","Whiteley",30.5,1582536810],
+                [2,"Jones.com","Jones",44.2,1582812800],
                 [3,"Simpson@example.com","Simpson",69,1583570630],
                 [4,"Brown@example.com","Brown",15,1590383895]
             ]
@@ -67,7 +67,7 @@ export const partialImport1: any = {
         {
             name: "users",
             values: [
-                [5,"Addington.com","Addington",22,1590388335],
+                [5,"Addington.com","Addington",22.7,1590388335],
                 [6,"Bannister.com","Bannister",59,1590393015],
                 [2,"Jones@example.com","Jones",45,1590393325]
 

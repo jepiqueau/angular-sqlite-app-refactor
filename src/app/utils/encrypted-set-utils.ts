@@ -20,13 +20,13 @@ export const setContacts: Array<capSQLiteSet>  = [
   },
   { statement:"INSERT INTO contacts (name,FirstName,email,age,MobileNumber) VALUES (?,?,?,?,?);",
     values:[
-      ["Jones","David","Jones@example.com",42,"4404030201"],
-      ["Whiteley","Dave","Whiteley@example.com",45,"4405162732"],
+      ["Jones","David","Jones@example.com",42.1,"4404030201"],
+      ["Whiteley","Dave","Whiteley@example.com",45.3,"4405162732"],
       ["Brown","John","Brown@example.com",35,"4405243853"]
     ]
   },
   { statement:"UPDATE contacts SET age = ? , MobileNumber = ? WHERE id = ?;",
-    values:[51,"4404030202",2]
+    values:[51.4,"4404030202",2]
   }
 ];
 export const createSchemaMessages: string = `

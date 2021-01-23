@@ -22,86 +22,81 @@ export class Testexportjson59Page implements AfterViewInit {
     console.log("%%%% in Testexportjson59Page this._sqlite " + 
                                                   this._sqlite)
 
-    const result: boolean = await this.runTest();
-    if(result) {
+    try {
+      await this.runTest();
       document.querySelector('.sql-allsuccess').classList
       .remove('display');
       console.log("$$$ runTest was successful");
-    } else {
+    } catch (err) {
       document.querySelector('.sql-allfailure').classList
       .remove('display');
-      console.log("$$$ runTest failed");
+      console.log(`$$$ runTest failed ${err.message}`);
     }
   }
 
 
-  async runTest(): Promise<boolean> {
-    let result: any = await this._sqlite.echo("Hello World");
-    console.log(" from Echo " + result.value);
+  async runTest(): Promise<void> {
+    try {
+      let result: any = await this._sqlite.echo("Hello World");
+      console.log(" from Echo " + result.value);
 
-    // ************************************************
-    // Import Json Object Issue#59
-    // ************************************************
-    // test Json object validity
-    result = await this._sqlite
-                          .isJsonValid(JSON.stringify(dataToImport59));
-    if(!result.result) {
-      console.log(`isJsonValid: ${result.message}`);
-      return false;
+      // ************************************************
+      // Import Json Object Issue#59
+      // ************************************************
+      // test Json object validity
+      result = await this._sqlite
+                            .isJsonValid(JSON.stringify(dataToImport59));
+      if(!result.result) {
+        return Promise.reject(new Error("IsJson failed"));
+      }
+      console.log("$$$ dataToImport Json Object is valid $$$")
+      // full import
+      result = await this._sqlite
+                          .importFromJson(JSON.stringify(dataToImport59));    
+      console.log(`full import result ${result.changes.changes}`);
+      if(result.changes.changes === -1 ) return Promise.reject(new Error("ImportFromJson 'full' failed"));;
+
+      // ************************************************
+      // Export Json Object from an Existing Database
+      // ************************************************
+
+      // create the connection to the database
+      const db = await this._sqlite
+                        .createConnection("db-from-json59", false,
+                                          "no-encryption", 1);
+      if(db === null) return Promise.reject(new Error("CreateConnection db-from-json59 failed"));
+
+      // open db testNew
+      await db.open();
+
+      // create synchronization table 
+      result = await db.createSyncTable();
+      if (result.changes.changes < 0) return Promise.reject(new Error("CreateSyncTable failed"));
+
+
+      result = await db.getSyncDate();
+      if(result.syncDate === 0) return Promise.reject(new Error("GetSyncDate failed"));
+      console.log("$$ syncDate " + result.syncDate);
+
+      // export json
+      let jsonObj: any = await db.exportToJson('full');
+      
+      console.log(JSON.stringify(jsonObj.export));    
+      // test Json object validity
+      result = await this._sqlite
+                            .isJsonValid(JSON.stringify(jsonObj.export));
+      if(!result.result) {
+        return Promise.reject(new Error("IsJsonValid export 'full' failed"));
+      }
+
+
+      // close the connection
+      await this._sqlite.closeConnection("db-from-json59"); 
+      this._detailService.setExportJson(false);
+
+      return Promise.resolve();
+    } catch (err) {
+      return Promise.reject(err);
     }
-    console.log("$$$ dataToImport Json Object is valid $$$")
-    // full import
-    result = await this._sqlite
-                        .importFromJson(JSON.stringify(dataToImport59));    
-    console.log(`full import result ${result.changes.changes}`);
-    if(result.changes.changes === -1 ) return false;
-
-    // ************************************************
-    // Export Json Object from an Existing Database
-    // ************************************************
-
-    // create the connection to the database
-    const db = await this._sqlite
-                      .createConnection("db-from-json59", false,
-                                        "no-encryption", 1);
-    if(db === null) return false;
-
-    // open db testNew
-    result = await db.open();
-    if (!result.result) return false;
-
-    // create synchronization table 
-    result = await db.createSyncTable();
-    console.log(`after createSyncTable ${JSON.stringify(result)}` )
-    if (result.changes.changes < 0) return false;
-
-
-    result = await db.getSyncDate();
-    console.log(`after getSyncDate  ${JSON.stringify(result)}` )
-    if(result.syncDate === 0) return false;
-    console.log("$$ syncDate " + result.syncDate);
-
-    // export json
-    let jsonObj: any = await db.exportToJson('full');
-    
-    console.log(JSON.stringify(jsonObj.export));    
-    // test Json object validity
-    result = await this._sqlite
-                          .isJsonValid(JSON.stringify(jsonObj.export));
-    if(!result.result) {
-      console.log(`isJsonValid: ${result.message}`);
-      return false;
-    }
-
-
-    // close the connection
-    result = await this._sqlite.closeConnection("db-from-json59"); 
-    if(!result.result) return false; 
-    this._detailService.setExportJson(false);
-
-    return true;
-    
-
   }
-
 }

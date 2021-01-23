@@ -15,82 +15,78 @@ export class CopyfromassetsPage implements AfterViewInit {
   constructor(private _sqlite: SQLiteService) {}
 
   async ngAfterViewInit() {
-    const result: boolean = await this.runTest();
-    if(result) {
+    try {
+      await this.runTest();
       document.querySelector('.sql-allsuccess').classList
       .remove('display');
       console.log("$$$ runTest was successful");
-    } else {
+    } catch (err) {
       document.querySelector('.sql-allfailure').classList
       .remove('display');
-      console.log("$$$ runTest failed");
+      console.log(`$$$ runTest failed ${err.message}`);
     }
   }
 
 
-  async runTest(): Promise<boolean> {
-    console.log("%%%% in CopyfromassetsPage this._sqlite " + this._sqlite)
-    this.log += "* Starting testDatabaseCopyFromAssets *\n";
-    let result: any = await this._sqlite.echo("Hello World");
-    console.log(" from Echo " + result.value);
-    let res: any = await this._sqlite.copyFromAssets();
-    if(!res.result) return false;
-    this.log  +="  > copyFromAssets successful\n";
-    // create a connection for myDB
-    let db = await this._sqlite
-                .createConnection("myDB", false, "no-encryption", 1);
-    if(db == null ) return false;
-    this.log += "  > createConnection 'myDb' successful\n";
-    res = await db.open();
-    if(!res.result) return false;
-    this.log += "  > open 'myDb' successful\n";
-    // Select all Users
-    res = await db.query("SELECT * FROM users");
-    console.log(`@@@ res.values.length ${res.values.length}`)
-    if(res.values.length !== 7 ||
-        res.values[0].name !== "Whiteley" ||
-        res.values[1].name !== "Jones" ||
-        res.values[2].name !== "Simpson" ||
-        res.values[3].name !== "Brown" ||
-        res.values[4].name !== "Jackson" ||
-        res.values[5].name !== "Kennedy" ||
-        res.values[6].name !== "Bush") return false;
+  async runTest(): Promise<void> {
+    try {
+      console.log("%%%% in CopyfromassetsPage this._sqlite " + this._sqlite)
+      this.log += "* Starting testDatabaseCopyFromAssets *\n";
+      let result: any = await this._sqlite.echo("Hello World");
+      console.log(" from Echo " + result.value);
+      await this._sqlite.copyFromAssets();
+      this.log  +="  > copyFromAssets successful\n";
+      // create a connection for myDB
+      let db = await this._sqlite
+                  .createConnection("myDB", false, "no-encryption", 1);
+      if(db == null ) return Promise.reject(new Error("createConnection myDB failed"));
+      this.log += "  > createConnection 'myDb' successful\n";
+      await db.open();
+      this.log += "  > open 'myDb' successful\n";
+      // Select all Users
+      let res: any = await db.query("SELECT * FROM users");
+      console.log(`@@@ res.values.length ${res.values.length}`)
+      if(res.values.length !== 7 ||
+          res.values[0].name !== "Whiteley" ||
+          res.values[1].name !== "Jones" ||
+          res.values[2].name !== "Simpson" ||
+          res.values[3].name !== "Brown" ||
+          res.values[4].name !== "Jackson" ||
+          res.values[5].name !== "Kennedy" ||
+          res.values[6].name !== "Bush")  return Promise.reject(new Error("Query 7 users failed"));
 
-    this.log += "  > query 'myDb' successful\n";
+      this.log += "  > query 'myDb' successful\n";
 
-    // Close Connection MyDB        
-    res = await this._sqlite.closeConnection("myDB"); 
-    if(!res.result) {
-        return false; 
+      // Close Connection MyDB        
+      await this._sqlite.closeConnection("myDB"); 
+      this.log += "  > closeConnection 'myDb' successful\n";
+
+      // create a connection for dbForCopy
+      db = await this._sqlite
+            .createConnection("dbForCopy", false, "no-encryption", 1);
+      if(db == null ) return Promise.reject(new Error("createConnection dbForCopy failed"));
+
+      this.log += "  > createConnection 'dbForCopy' successful\n";
+      await db.open();
+      this.log += "  > open 'dbForCopy' successful\n";
+      // Select all Users
+      res = await db.query("SELECT * FROM areas");
+      if(res.values.length !== 3 ||
+          res.values[0].name !== "Access road" ||
+          res.values[1].name !== "Accessway" ||
+          res.values[2].name !== "Air handling system") return Promise.reject(new Error("Query 3 areas failed"));
+
+      this.log += "  > query 'dbForCopy' successful\n";
+      // Close Connection dbForCopy       
+      await this._sqlite.closeConnection("dbForCopy"); 
+      this.log += "  > closeConnection 'dbForCopy' successful\n";
+              
+      this.log += "* Ending testDatabaseCopyFromAssets *\n";
+      return Promise.resolve();
+    } catch (err) {
+      return Promise.reject(err);
     }
-    this.log += "  > closeConnection 'myDb' successful\n";
 
-    // create a connection for dbForCopy
-    db = await this._sqlite
-          .createConnection("dbForCopy", false, "no-encryption", 1);
-    if(db == null ) return false;
-    this.log += "  > createConnection 'dbForCopy' successful\n";
-    res = await db.open();
-    if(!res.result) return false;
-    this.log += "  > open 'dbForCopy' successful\n";
-    // Select all Users
-    res = await db.query("SELECT * FROM areas");
-    console.log(`@@@ res.values.length ${res.values.length}`)
-    if(res.values.length !== 3 ||
-        res.values[0].name !== "Access road" ||
-        res.values[1].name !== "Accessway" ||
-        res.values[2].name !== "Air handling system") return false;
-
-    this.log += "  > query 'dbForCopy' successful\n";
-    // Close Connection dbForCopy       
-    res = await this._sqlite.closeConnection("dbForCopy"); 
-    if(!res.result) {
-        return false; 
-    }
-    this.log += "  > closeConnection 'dbForCopy' successful\n";
-            
-    this.log += "* Ending testDatabaseCopyFromAssets *\n";
-    return true;
   }
 
 }

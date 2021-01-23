@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     name TEXT,
     company TEXT,
-    size FLOAT,
+    size REAL,
     age INTEGER,
     last_modified INTEGER DEFAULT (strftime('%s', 'now'))    
 );
@@ -18,7 +18,7 @@ BEGIN
 END;
 `;
 // Insert some Users
-const row: Array<Array<any>> = [["Whiteley","Whiteley.com",30],["Jones","Jones.com",44]];
+const row: Array<Array<any>> = [["Whiteley","Whiteley.com",30.5],["Jones","Jones.com",44]];
 export const twoUsers: string = `
 DELETE FROM users;
 INSERT INTO users (name,email,age) VALUES ("${row[0][0]}","${row[0][1]}",${row[0][2]});
