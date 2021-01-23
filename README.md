@@ -8,7 +8,7 @@
 <p align="center">
   <img src="https://img.shields.io/maintenance/yes/2021?style=flat-square" />
   <a href="https://github.com/jepiqueau/angular-sqlite-app-refactor"><img src="https://img.shields.io/github/license/jepiqueau/angular-sqlite-app-refactor?style=flat-square" /></a>
-  <a href="https://github.com/jepiqueau/angular-sqlite-app-refactor"><img src="https://img.shields.io/github/package-json/v/jepiqueau/angular-sqlite-app-refactor?style=flat-square" /></a>
+  <a href="https://github.com/jepiqueau/angular-sqlite-app-refactor"><img src="https://img.shields.io/github/package-json/v/jepiqueau/angular-sqlite-app-refactor/refactor?style=flat-square" /></a>
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 <a href="#contributors-"><img src="https://img.shields.io/badge/all%20contributors-1-orange?style=flat-square" /></a>
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
@@ -105,7 +105,7 @@ The application uses a service class as a wrapper to the ```@capacitor-community
 
 ### Resulting Output
 
-<p align="center"><br><img src="https://github.com/jepiqueau/angular-sqlite-app-refactor/blob/main/src/assets/icon/CaptureResult.png" width="200" height="400" /></p>
+<p align="center"><br><img src="https://github.com/jepiqueau/angular-sqlite-app-refactor/blob/refactor/src/assets/icon/CaptureResult.png" width="200" height="400" /></p>
 
 
 At the end of the test, three databases should have been created,  
